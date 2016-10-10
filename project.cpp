@@ -15,11 +15,6 @@ float dist(float a[],float b[])/*Definitivo*/{
 	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
 }
 
-void setV(float v[],float c[])/*Definitivo*/{
-	v[0] = c[0];
-	v[1] = c[1];
-	v[2] = c[2];
-}
 void setV(float v[],float x,float y,float z)/*Definitivo*/{
 	v[0] = x;
 	v[1] = y;
