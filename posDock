@@ -1,0 +1,11 @@
+void posDock (){
+
+    float r[]={.162,.149,.135};  //Raggio per Small, medium, large. l'indice indica il tipo.
+
+    mathVecSubtract(v, pos, vai, 3);
+    mathVecNormalize(v,3);
+    
+    for (int i=0; i<3; i++){
+        vai[i]=v[i]*(dist(pos,vai)-r[game.getItemType(ID)]);
+    }
+}
