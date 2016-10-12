@@ -136,17 +136,17 @@ void dock(){
 bool checkDock(){
     
     switch (ID){
-        case 0: case 1: if (dist(stato, v)>.151 && dist(stato, v)<.173 && speed < .01)
+        case 0: case 1: if (dist(stato, vai)>.151 && dist(stato, vai)<.173 && speed < .01)
                             return true;
                         else return false;
                         break;
                         
-        case 2: case 3: if (dist(stato, v)>.138 && dist(stato, v)<.160 && speed < .01)
+        case 2: case 3: if (dist(stato, vai)>.138 && dist(stato, vai)<.160 && speed < .01)
                             return true;
                         else return false;
                         break;
                         
-        case 4: case 5: if (dist(stato, v)>.124 && dist(stato, v)<.160 && speed < .01)
+        case 4: case 5: if (dist(stato, vai)>.124 && dist(stato, vai)<.160 && speed < .01)
                             return true;
                         else return false;
     }
