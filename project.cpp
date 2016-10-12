@@ -29,7 +29,7 @@ bool oOB()/*Definitivo*/{
 }
 
 void ruota(){
-	if(spsAllDrop && dist(stato,vai) < 0.5){//per risparmiare fuel
+	if(spsAllDrop && dist(stato,vai) < 0.7){//per risparmiare fuel
 	  mathVecSubtract(v,vai,stato,3);//uso vai
 	  mathVecNormalize(v,3);
 	  api.setAttitudeTarget(v);
@@ -81,6 +81,7 @@ int checkDock()/*verifico condizioni per docking*/{
 }
 
 void dock(){
+    if(dist(stato,vai)<0.3)
     switch (checkDock()){
         case 0:
           game.dockItem();
@@ -93,11 +94,11 @@ void dock(){
         break;
         case 1:
             setV(vai,vai[0]+(vai[0]>0)?-0.03:0.03,vai[1]+
-                (vai[1]>0)?-0.03:0.03,vai[2]+(vai[2]>0)?-0.03:0.03);
+                (vai[1]>0)?-0.03:0.03,vai[2]+(vai[2]>0)?-0.03:0.03);//da sistemare
         break;
         case 2:
             setV(vai,vai[0]+(vai[0]>0)?0.03:-0.03,vai[1]+
-                (vai[1]>0)?0.03:-0.03,vai[2]+(vai[2]>0)?0.03:-0.03);
+                (vai[1]>0)?0.03:-0.03,vai[2]+(vai[2]>0)?0.03:-0.03);//da sistemare
         break;
         case 3:
           api.setPositionTarget(stato);
