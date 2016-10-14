@@ -1,0 +1,211 @@
+//Begin page main
+//Globals
+
+char BoR; // R se sfera rossa, B se blu
+int fase,sottofase,ID; //id = oggetto
+float stato[12]; //mio stato
+float statoAvv[12]; //suo stato
+float vai[3]; // obiettivo
+float posAvv[3]; //posizione avversario
+float facing[3]; //
+float zona[4]; 
+float v[3]; //
+bool LARGE, MEDIUM, SMALL;
+bool spsAllDrop; //se tutti gli sps sono stati rilasciati
+float speed;
+int tempo;
+int cont;
+// Modifica un vettore.
+void setV(float v[],float x,float y,float z){
+	v[0] = x;v[1] = y;v[2] = z;
+}
+
+//Funzione per calcolare la distanza
+float dist(float a[],float b[])/*Definitivo*/{
+	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
+}
+
+
+//Funzione per la rotazione
+void ruota(){
+	if(spsAllDrop && dist(stato,vai) < 0.7){//per risparmiare fuel
+	  mathVecSubtract(v,vai,stato,3);//uso vai
+	  mathVecNormalize(v,3);
+	  api.setAttitudeTarget(v);
+	}
+}
+
+
+//Funzione movimento da modificare
+void muovi(float item[]){
+    float distanza_item;
+    float vector[3];
+    
+    distanza_item = dist(stato,item);
+    //setto il tempo
+    if(distanza_item<=0.250)
+    tempo=3;
+    else
+    if(distanza_item<=0.500)
+    tempo=6;
+    else
+    if(distanza_item>=0.750)
+    tempo=9;
+    
+    mathVecSubtract(vector,item,stato,3);
+    for(int i=0;i<3;i++)
+    {
+        vector[i]=vector[i]*0.046;
+    }
+
+    if(cont<tempo)
+    {
+    api.setForces(vector);
+    }
+    else 
+    {
+        api.setPositionTarget(item); 
+    }
+    cont++;
+}
+bool checkDock(){
+    
+    switch (ID){
+        case 0: case 1: if (dist(stato, vai)>.151 && dist(stato, vai)<.173 && speed < .01)
+                            return true;
+                        else return false;
+                        break;
+                        
+        case 2: case 3: if (dist(stato, vai)>.138 && dist(stato, vai)<.160 && speed < .01)
+                            return true;
+                        else return false;
+                        break;
+                        
+        case 4: case 5: if (dist(stato, vai)>.124 && dist(stato, vai)<.146 && speed < .01)
+                            return true;
+                        else return false;
+    }
+}
+
+
+//Funzione per il docking (prendere gli oggetti)
+void dock(){
+        switch (checkDock()){
+            case true: if(game.hasItemBeenPickedUp(ID) || game.hasItemBeenPickedUp(ID+1))
+                            switch (ID){
+                                case 0: case 1: LARGE = FALSE; break;
+                                case 2: case 3: MEDIUM = FALSE; break;
+                                case 4: case 5: SMALL = FALSE;
+                            }
+                            game.dockItem();
+                            break;
+            case false: DEBUG (("Dock impossibile")); //Parte da aggiungere
+        }
+}
+
+//Funzione per stabilire il docking da correggere
+void posDock (){
+
+    //Raggio per Small, medium, large. l'indice indica il tipo.
+    float r[]={.162,.149,.135};  
+    
+    //creo il vettore
+    mathVecSubtract(v, stato, vai, 3);
+    mathVecNormalize(v,3);
+    //trovo la posizione per il docking dell oggetto
+    for (int i=0; i<3; i++){
+        vai[i]=v[i]*(dist(stato,vai)-r[game.getItemType(ID)]);
+    }
+}
+
+
+//calcolare la priorità degli oggetti da prendere;
+void itemPriority(){
+    /*float large[3]={0.375, 0.727, 0.2}; //massa, accelerazione, punteggio
+    float medium[3]={0.25, 0.8, 0.15};
+    float small[3]={0.125, 0.889, 0.1};*/
+    float d[3];
+    float d1[3];
+    
+    if(!LARGE)
+      ID=2;//0-1 sono i large, 2-3 i medium e 4-5 gli small, per quello incremento i così
+    if(!MEDIUM)
+      ID=4;
+    if(!SMALL){
+      MEDIUM = true;//se ho preso anche uno small, passo di nuovo al medium e poi all'altro small
+      ID=2;
+    }
+    game.getItemLoc(d,ID);
+    game.getItemLoc(d1,(ID+1));
+    
+    if((dist(stato, d)+dist(d, zona)) > (dist(stato, d1)+dist(d1, zona)) && !game.hasItemBeenPickedUp(ID+1))
+        ID++;
+}
+
+//funzione inizializzazione dati
+void init(){
+	for(int i = 0; i < 3; i++)vai[i] =  0;
+	api.getMyZRState(stato);
+	BoR = stato[1] > 0 ? 'R' : 'B'; //capisco quale sfera siamo
+	fase = sottofase = 0;
+	spsAllDrop = false;
+	LARGE = true;
+	MEDIUM = true;
+	SMALL = true;
+	tempo=0;cont=0;
+}
+
+
+void loop(){
+    api.getMyZRState(stato); //aggiorno dati miei
+	api.getOtherZRState(statoAvv); //aggiorno dati avversario
+	for(int i = 0; i < 3; i++){
+		facing[i] = stato[i + 6];
+		posAvv[i] = statoAvv[i];
+	}//ottengo pos + dir miei e pos avversario
+
+	switch(fase){
+        case 0://drop SPSs, i cosi per sapere dove si trova la zhohona
+            if (sottofase==0){
+                game.dropSPS();
+                sottofase++;
+                setV(vai, -0.3, 0.65, -0.25); 
+                //game.getItemLoc(vai,1);
+            }
+            else if (sottofase==1 && dist(vai,stato)<0.1){
+                game.dropSPS();
+                sottofase++;
+                setV(vai, -0.3, .0, -0.25);                                               
+                //game.getItemLoc(vai,5);
+            }
+            else if(sottofase==2 && dist(vai,stato)<0.1){
+                game.dropSPS();
+                spsAllDrop = true;
+                sottofase=0;
+                fase++;
+                itemPriority();
+            }
+        break;
+        case 1://getZone
+            if(!game.getZone(zona))//se true, carica anche la posizione della sfera in zona
+                fase--;
+            if(game.hasItem(ID) == 0){
+                itemPriority();
+                DEBUG (("ID: %d", ID));
+                game.getItemLoc(vai, ID);
+                dock();
+            }
+            else{
+                setV(vai, zona[0],zona[1],zona[2]);
+                if(dist(stato,vai) < 0.185) game.dropItem();
+            }
+        break;
+        default:
+        DEBUG(("ERROR"));
+	}
+	DEBUG(("%f, %f, %f",vai[0],vai[1],vai[2]));
+	ruota(); //rotazione verso punta[]
+	muovi(vai); //spostamento verso vai[]
+}
+
+//End page main
