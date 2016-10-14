@@ -1,6 +1,6 @@
 bool LARGE, MEDIUM, SMALL, spsAllDrop, itemChosen, chooseItem;
 int fase, sottofase, ID, BoR;
-float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3];
+float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3];
 
 //Funzione per prelevare dati
 void getDati()
@@ -40,33 +40,43 @@ void muovi()
 		mathVecSubtract(vec,vai,stato,3);
 	
 	switch (spsAllDrop){
-	                //Se l'oggetto è stato scelto, esegue 
-	    case true:  if (itemChosen == true)
-	                    posDock();
-	                api.setPositionTarget(vai);
+	                //Se l'oggetto è stato scelto, esegue il calcolo della posizione ottimale del docking
+	    case true:  
+	                if (itemChosen == true)
+	                    posDock(oggetto);
+	                    
+	                //Viaggia verso la destinazione impostata da posDock
+	                if (dist(vai, stato) < 0.25)
+	                    api.setPositionTarget(stato);
+	                else api.setPositionTarget(vai);
+	                
+	                ruota();
 	                break;
 	                
+	                //Se la distanza alla posizione è minore di 0.13, rallenta per fermarsi
 	    case false: if (dist(vai, stato) < 0.13)
 	                    api.setPositionTarget(stato);
+	                //Altrimenti, se la posizione è maggiore di 0.50, aumenta la velocità
 	                else if (dist(vai, stato) > 0.50)
 	                     {
 	                         api.setVelocityTarget(vec);
 	                         api.setPositionTarget(vai);
 	                     }
+	                     //Altrimenti, se si trova tra 0.13 e 0.50, utilizza il setPosition per rallentare la velocità senza fermarsi
 	                     else api.setPositionTarget(vai);
 	}
 }
 //Funzione per la rotazione
 void ruota()
 {
-	float vett[3];
-	
+    float vett[3];
+    
 	//per risparmiare fuel inizio a utilizzare la rotazione solo se mi trovo a una certa distanza
 	if(spsAllDrop && dist(stato,vai) < 0.5)
 	{
-	  mathVecSubtract(vett,vai,stato,3);
-	  mathVecNormalize(vett,3);
-	  api.setAttitudeTarget(vett);
+	    mathVecSubtract(vett,vai,stato,3);
+	    mathVecNormalize(vett,3);
+	    api.setAttitudeTarget(vett);
 	}
 }
 //Funzione per il docking
@@ -109,27 +119,29 @@ bool checkDock()
     }
 }
 //Funzione per stabilire la posizione ottimale per il docking
-void posDock(){
+void posDock(float vett[])
+{
     //Raggio per Large, Medium, Small. l'indice indica il tipo.
-    float r[]={.151,.138,.124};
-    float vett[3];
-    float posObj[3];
+    float r[]={.162,.149,.135};
     
     mathVecSubtract(vett, vai, stato, 3);
     mathVecNormalize(vett,3);
     
-    game.getItemLoc(posObj, ID);
+    game.getItemLoc(vai, ID);
     
-    float distanza = dist(stato,posObj);
+    float distanza = dist(vai, stato);
+    DEBUG (("Distanza prima calcolo: %f", distanza));
     
     for (int i=0; i<3; i++)
-        vai[i]=vett[i]*(distanza-r[game.getItemType(ID)]);
-    
+    {
+        vett[i]*=(distanza-r[game.getItemType(ID)]);
+    }
     //Annulla selezione oggetto poichè è già stata trovata la sua posizione
     itemChosen = false;
 }
 //Funzione per la scelta dell'item da prendere in base a condizioni di distanza
-void itemPriority(){
+void itemPriority()
+{
     
     float d[3];
     float d1[3];
@@ -245,5 +257,4 @@ void loop()
 	
 	DEBUG (("/x:%f y:%f z:%f \n/ vel: %f \n/ fase: %d", vai[0], vai[1], vai[2], speed, fase));
 	muovi();    //Si muove verso vai[]
-	ruota();    //Punta verso vai[] (o punta[]?)
 }
