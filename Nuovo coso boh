@@ -20,6 +20,15 @@ void getDati()
 	
 	//Aggiorno la velocità
 	speed = mathVecMagnitude(vel,3);
+	
+	//Aggiorno quali oggetti sono disponibili
+	if(game.hasItemBeenPickedUp(ID))
+        switch (ID)
+        {
+            case 0: case 1: LARGE = FALSE; break;
+            case 2: case 3: MEDIUM = FALSE; break;
+            case 4: case 5: SMALL = FALSE;
+        }
 }
 //Funzione per settare un vettore
 void setV(float v[],float x,float y,float z)/*Definitivo*/
@@ -40,17 +49,34 @@ void muovi()
 		mathVecSubtract(vec,vai,stato,3);
 	
 	switch (spsAllDrop){
-	                //Se l'oggetto è stato scelto, esegue il calcolo della posizione ottimale del docking
-	    case true:  
-	                if (itemChosen == true)
-	                    posDock(oggetto);
-	                    
-	                //Viaggia verso la destinazione impostata da posDock
-	                if (dist(vai, stato) < 0.25)
-	                    api.setPositionTarget(stato);
-	                else api.setPositionTarget(vai);
 	                
-	                ruota();
+	    case true:  //Se non abbiamo l'oggetto
+	                if (game.hasItem(ID) == 0)
+	                {
+    	                //Se l'oggetto è stato scelto, esegue il calcolo della posizione ottimale del docking
+    	                if (itemChosen == true)
+    	                    posDock(oggetto);
+    	                  
+    	                //Viaggia verso la destinazione impostata da posDock
+    	                if (dist(vai, stato) < 0.25)
+    	                    api.setPositionTarget(stato);
+    	                else api.setPositionTarget(vai);
+	                }
+	                //Altrimenti se abbiamo l'oggetto
+    	            else 
+    	            { 
+    	                dropItem();
+    	  
+    	                //Se la distanza è minore di 0.15, attiva il "freno"
+    	                if (dist(vai, stato) < 0.17)
+    	                    api.setPositionTarget(stato);
+    	                    
+    	                //Altrimenti utilizza il setPosition
+    	                else api.setPositionTarget(vai);
+    	            }
+    	            
+    	            //Ruota viene sempre richiamato qui poichè è fondamentale
+    	            ruota();
 	                break;
 	                
 	                //Se la distanza alla posizione è minore di 0.13, rallenta per fermarsi
@@ -71,13 +97,9 @@ void ruota()
 {
     float vett[3];
     
-	//per risparmiare fuel inizio a utilizzare la rotazione solo se mi trovo a una certa distanza
-	if(spsAllDrop && dist(stato,vai) < 0.5)
-	{
-	    mathVecSubtract(vett,vai,stato,3);
-	    mathVecNormalize(vett,3);
-	    api.setAttitudeTarget(vett);
-	}
+    mathVecSubtract(vett,vai,stato,3);
+    mathVecNormalize(vett,3);
+    api.setAttitudeTarget(vett);
 }
 //Funzione per il docking
 void dock()
@@ -85,14 +107,7 @@ void dock()
     //Switch per eseguire il docking in base alla possibilità determinata da checkDock()    
     switch (checkDock()){
         
-                    //Se abbiamo preso l'oggetto, segna gli oggetti di quel tipo come presi
-        case true:  if(game.hasItemBeenPickedUp(ID))
-                        switch (ID){
-                            case 0: case 1: LARGE = FALSE; break;
-                            case 2: case 3: MEDIUM = FALSE; break;
-                            case 4: case 5: SMALL = FALSE;
-                        }
-                    //Esegue il docking dell'oggetto
+        case true:  //Esegue il docking dell'oggetto
                     game.dockItem();
                     break;
                     
@@ -130,7 +145,6 @@ void posDock(float vett[])
     game.getItemLoc(vai, ID);
     
     float distanza = dist(vai, stato);
-    DEBUG (("Distanza prima calcolo: %f", distanza));
     
     for (int i=0; i<3; i++)
     {
@@ -169,6 +183,21 @@ void itemPriority()
     itemChosen = true;
     chooseItem = false;
 }
+//Funzione per rilasciare l'oggetto
+void dropItem()
+{
+    //Settiamo al vettore vai la zona per il rilascio dell'oggetto
+    setV(vai, zona[0], zona[1], zona[2]);
+    
+    if (dist(vai,stato) < 0.13)
+    {
+        //Rilascia l'oggeto nella zona
+        game.dropItem();
+            
+        //Avendo lasciato l'oggetto precedentemente preso, devo sceglierne un altro
+        chooseItem = true;
+    }
+}
 //Funzione per l'inizializzazione delle variabili (eseguito solo una volta)
 void init()
 {
@@ -202,6 +231,7 @@ void loop()
                 game.dropSPS();
                 sottofase++;
                 setV(vai,-0.3,-0.5,0);
+                //setV(vai, -0.25, 0.45, .0); **Alternativo
             }
             //Droppo il secondo SPS
             else if (sottofase == 1 && dist(vai,stato) <0.1)
@@ -209,6 +239,7 @@ void loop()
                 game.dropSPS();
                 sottofase++;
                 setV(vai,-0.3,0.3,0);
+                //setV(vai, -0.25, -0.1, -0.25); **Alternativo
             }
             //Droppo il terzo SPS
             else if(sottofase == 2 && dist(vai,stato) < 0.1)
@@ -238,16 +269,6 @@ void loop()
                 if (game.hasItem(ID) == 0)
                 {
                     dock();     //funzione per il docking
-                }
-                else 
-                {
-                    setV(vai, zona[0], zona[1], zona[3]);
-                    if (dist(vai,stato) < 0.15)
-                        //Rilascia l'oggeto nella zona
-                        game.dropItem();
-                    
-                    //Avendo lasciato l'oggetto precedentemente preso, devo sceglierne un altro
-                    chooseItem = true;
                 }
             }
             break;
