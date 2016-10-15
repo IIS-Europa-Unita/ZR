@@ -1,6 +1,6 @@
 bool LARGE, MEDIUM, SMALL, spsAllDrop, itemChosen, chooseItem;
 int fase, sottofase, ID, BoR;
-float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], r[3];
+float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], r[3], R[3];
 
 //Funzione per prelevare dati
 void getDati()
@@ -56,9 +56,13 @@ void muovi()
 	                    game.getItemLoc(vai, ID);
     	                  
     	                //Viaggia verso la destinazione impostata da posDock
-    	                if (dist(vai, stato) < r[game.getItemType(ID)])
+    	                if ((dist(vai, stato) < r[game.getItemType(ID)]) && speed > 0.01)
     	                    api.setPositionTarget(stato);
-    	                else api.setPositionTarget(vai);
+    	                else if((dist(vai, stato) > R[game.getItemType(ID)])) 
+    	                        api.setPositionTarget(vai);
+    	                     else if (speed < 0.009) 
+    	                            api.setPositionTarget(vai);
+    	                            else api.setPositionTarget(stato);
 	                }
 	                //Altrimenti se abbiamo l'oggetto
     	            else 
@@ -66,9 +70,8 @@ void muovi()
     	                dropItem();
     	  
     	                //Se la distanza è minore di 0.15, attiva il "freno"
-    	                if (dist(vai, stato) < 0.17)
+    	                if (dist(vai, stato) < 0.13)
     	                    api.setPositionTarget(stato);
-    	                    
     	                //Altrimenti utilizza il setPosition
     	                else api.setPositionTarget(vai);
     	            }
@@ -167,7 +170,7 @@ void dropItem()
     //Settiamo al vettore vai la zona per il rilascio dell'oggetto
     setV(vai, zona[0], zona[1], zona[2]);
     
-    if (dist(vai,stato) < 0.13)
+    if (dist(vai,stato) < 0.15)
     {
         //Rilascia l'oggeto nella zona
         game.dropItem();
@@ -184,9 +187,12 @@ void init()
     for (int i = 0; i < 3; i++)
         vai[i]=0;
     
-    r[0] = .22;
-    r[1] = .22;
-    r[2] = .22;
+    R[0] = .22;
+    R[1] = .22;
+    R[2] = .22;
+    r[0] = .17;
+    r[1] = .16;
+    r[2] = .15;
     
     //Prelevo il mio stato
 	api.getMyZRState(stato);
@@ -221,7 +227,7 @@ void loop()
             {
                 game.dropSPS();
                 sottofase++;
-                setV(vai,-0.3,0.3,0);
+                setV(vai,-0.3,0.5,0);
                 //setV(vai, -0.25, -0.1, -0.25); **Alternativo
             }
             //Droppo il terzo SPS
