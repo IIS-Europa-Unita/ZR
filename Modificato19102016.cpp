@@ -1,12 +1,9 @@
 /*
-Da cambiare: LARGE, MEDIUM e SMALL come vettore booleano;
-Se l'avversario prende oggetto che dovevamo prendere noi, aspettiamo che lo rilasci e lo rubiamo;
-Controllare itemChosen se serve o meno;
-Cercare di non prendere oggetto che abbiamo già posato;
+Cercare di non prendere oggetto che abbiamo già posato *IMPORTANTE*;
 */
 
 bool spsAllDrop, itemChosen, TYPE[3];
-int fase, sottofase, ID, BoR;
+int fase, sottofase, ID, prevID, BoR;
 float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], R[3];
 
 //Funzione per prelevare dati
