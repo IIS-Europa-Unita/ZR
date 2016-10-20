@@ -1,10 +1,11 @@
 /*
 Da cambiare: LARGE, MEDIUM e SMALL come vettore booleano;
 Se l'avversario prende oggetto che dovevamo prendere noi, aspettiamo che lo rilasci e lo rubiamo;
-Controllare chooseItem e itemChosen se servono o meno;
+Controllare itemChosen se serve o meno;
 Cercare di non prendere oggetto che abbiamo già posato;
 */
-bool LARGE, MEDIUM, SMALL, spsAllDrop, itemChosen, chooseItem;
+
+bool spsAllDrop, itemChosen, TYPE[3];
 int fase, sottofase, ID, BoR;
 float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], R[3];
 
@@ -27,14 +28,23 @@ void getDati()
 	//Aggiorno la velocità
 	speed = mathVecMagnitude(vel,3);
 	
-	//Aggiorno quali oggetti sono disponibili
-	if(game.hasItemBeenPickedUp(ID) || game.hasItem(ID)==2)
+	//Aggiorno quali oggetti abbiamo preso
+	if((game.hasItem(ID) == 1) || game.itemInZone(ID))
         switch (ID)
         {
-            case 0: case 1: LARGE = FALSE; break;
-            case 2: case 3: MEDIUM = FALSE; break;
-            case 4: case 5: SMALL = FALSE;
+            case 0: case 1: TYPE[0] = true; break;
+            case 2: case 3: TYPE[1] = true; break;
+            case 4: case 5: TYPE[2] = true;
         }
+    else 
+        switch (ID)
+        {
+            case 0: case 1: TYPE[0] = false; break;
+            case 2: case 3: TYPE[1] = false; break;
+            case 4: case 5: TYPE[2] = false;
+        }
+    
+    DEBUG(("LARGE: %d / MEDIUM: %d / SMALL: %d", TYPE[0], TYPE[1], TYPE[2]));
 }
 //Funzione per settare un vettore
 void setV(float v[],float x,float y,float z)/*Definitivo*/
@@ -54,9 +64,9 @@ void muovi()
     float vec[3];
 		mathVecSubtract(vec,vai,stato,3);
 	
-	switch (spsAllDrop){
+	if (spsAllDrop){
 	                
-	    case true:  //Se non abbiamo l'oggetto
+	                //Se non abbiamo l'oggetto
 	                if (game.hasItem(ID) == 0)
 	                {
 	                    //Prendo posizione oggetto con ID stabilito da itemPriority
@@ -65,17 +75,10 @@ void muovi()
     	                //Se la distanza è maggiore del raggio maggiore per prendere l'oggetto specifico
     	                if (dist(vai, stato) > R[game.getItemType(ID)])
     	                    api.setPositionTarget(vai); //Viaggio verso l'oggetto
+    	                    
     	                //Altrimenti se è minore e la velocità è maggiore di 0.01
     	                else if (speed > 0.01) 
-    	                        api.setPositionTarget(stato);   //Rallento
-    	                        
-    	                /*if ((dist(vai, stato) < r[game.getItemType(ID)]) && speed > 0.01)
-    	                    api.setPositionTarget(stato);
-    	                else if((dist(vai, stato) > R[game.getItemType(ID)])) 
-    	                        api.setPositionTarget(vai);
-    	                     else if (speed < 0.009) 
-    	                            api.setPositionTarget(vai);
-    	                            else api.setPositionTarget(stato);*/
+    	                        api.setPositionTarget(stato);
 	                }
 	                //Altrimenti se abbiamo l'oggetto
     	            else if (game.hasItem(ID)==1)
@@ -93,25 +96,27 @@ void muovi()
     	                else 
     	                {
     	                   itemChosen=false;
-    	                   chooseItem=true;
     	                }
     	            
     	            //Ruota viene sempre richiamato qui poichè è fondamentale
     	            ruota();
-	                break;
-	                
-	                //Se la distanza alla posizione è minore di 0.13, rallenta per fermarsi
-	    case false: if (dist(vai, stato) < 0.18)
-	                    api.setPositionTarget(stato);
-	                //Altrimenti, se la posizione è maggiore di 0.50, aumenta la velocità
-	                else if (dist(vai, stato) > 0.65)
-	                     {
-	                         api.setVelocityTarget(vec);
-	                         api.setPositionTarget(vai);
-	                     }
-	                     //Altrimenti, se si trova tra 0.13 e 0.50, utilizza il setPosition per rallentare la velocità senza fermarsi
-	                     else api.setPositionTarget(vai);
 	}
+    else 
+        //Se la distanza alla posizione è minore di 0.13, rallenta per fermarsi
+        if (dist(vai, stato) < 0.13)
+                    api.setPositionTarget(stato);
+        //Altrimenti, se la posizione è maggiore di 0.50, aumenta la velocità
+        else 
+            if (dist(vai, stato) > 0.60)
+            {
+                api.setVelocityTarget(vec);
+                api.setPositionTarget(vai);
+            }
+            //Altrimenti, se si trova tra 0.13 e 0.60, utilizza il setPosition per rallentare la velocità senza fermarsi
+            else 
+                api.setPositionTarget(vai);
+	
+	        
 }
 //Funzione per la rotazione
 void ruota()
@@ -129,7 +134,7 @@ void dock()
     switch (checkDock()){
         
         case true:  //Esegue il docking dell'oggetto
-                    game.dockItem();
+                    game.dockItem(ID);
                     break;
                     
         case false: DEBUG (("Dock impossibile")); //Parte da aggiungere
@@ -162,12 +167,12 @@ void itemPriority()
     float d1[3];
     
     //0-1 sono i large, 2-3 i medium e 4-5 gli small
-    if(!LARGE)
+    if(TYPE[0])
       ID=2;     //Se il Large è stato preso, setto ID a 2 per prendere i Medium
-    if(!MEDIUM)
+    if(TYPE[1])
       ID=4;     //Se il Medium è stato preso, setto ID a 4 per prendere i Small
-    if(!SMALL){
-      MEDIUM = true;
+    if(TYPE[2]){
+      TYPE[1] = false;
       ID=2; //se ho preso anche uno Small, passo di nuovo al Medium e poi all'altro Small
     }
     
@@ -184,21 +189,21 @@ void itemPriority()
         
     //L'oggetto da prendere è stato scelto e non devo più scegliere un oggetto
     itemChosen = true;
-    chooseItem = false;
 }
 //Funzione per rilasciare l'oggetto
 void dropItem()
 {
+    float obj[3];
     //Settiamo al vettore vai la zona per il rilascio dell'oggetto
     setV(vai, zona[0], zona[1], zona[2]);
+    game.getItemLoc(obj, ID);
     
-    if (dist(vai,stato) < 0.15)
+    if (dist(vai, obj) < 0.05)
     {
         //Rilascia l'oggeto nella zona
         game.dropItem();
             
         //Avendo lasciato l'oggetto precedentemente preso, devo sceglierne un altro
-        chooseItem = true;
         itemChosen = false;
     }
 }
@@ -210,8 +215,8 @@ void init()
         vai[i]=0;
     
     //Valori dei raggi massimi per oggetti LARGE (0); MEDIUM (1); SMALL (2)
-    R[0] = .22;
-    R[1] = .22;
+    R[0] = .23;
+    R[1] = .23;
     R[2] = .23;
     
     //Prelevo il mio stato
@@ -223,7 +228,10 @@ void init()
 	//Inizializzo le variabili
 	fase = sottofase = ID = 0;
 	spsAllDrop = itemChosen = false;
-	LARGE = MEDIUM = SMALL = chooseItem = true;
+	
+	TYPE[0] = false;
+    TYPE[1] = false;
+    TYPE[2] = false;
 }
 //Funzione per l'applicazione della strategia e delle funzioni
 void loop()
@@ -270,7 +278,7 @@ void loop()
             else if (sottofase == 1)
             {
                 //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
-                if (itemChosen == false && chooseItem == true)
+                if (itemChosen == false)
                     itemPriority();
                 DEBUG(("ID: %d", ID));
                 
