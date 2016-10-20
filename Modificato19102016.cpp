@@ -1,9 +1,5 @@
-/*
-Cercare di non prendere oggetto che abbiamo già posato *IMPORTANTE*;
-*/
-
 bool spsAllDrop, itemChosen, TYPE[3];
-int fase, sottofase, ID, prevID, BoR;
+int fase, sottofase, ID, BoR;
 float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], R[3];
 
 //Funzione per prelevare dati
@@ -26,14 +22,15 @@ void getDati()
 	speed = mathVecMagnitude(vel,3);
 	
 	//Aggiorno quali oggetti abbiamo preso
-	if((game.hasItem(ID) == 1) || game.itemInZone(ID))
+	
+	if(game.hasItem(ID) || game.itemInZone(ID))
         switch (ID)
         {
             case 0: case 1: TYPE[0] = true; break;
             case 2: case 3: TYPE[1] = true; break;
             case 4: case 5: TYPE[2] = true;
         }
-    else 
+    else
         switch (ID)
         {
             case 0: case 1: TYPE[0] = false; break;
@@ -159,32 +156,26 @@ bool checkDock()
 //Funzione per la scelta dell'item da prendere in base a condizioni di distanza
 void itemPriority()
 {
+    float obj1[3], obj2[3];
     
-    float d[3];
-    float d1[3];
+    //Se large = false (non lo abbiamo preso), prendo ID del large e così via
+    if (!TYPE[0])   //LARGE
+        ID = 0;
+    else 
+        if (!TYPE[1])   //MEDIUM
+            ID = 2;
+        else
+            if (!TYPE[2])   //SMALL
+                ID = 4;
     
-    //0-1 sono i large, 2-3 i medium e 4-5 gli small
-    if(TYPE[0])
-      ID=2;     //Se il Large è stato preso, setto ID a 2 per prendere i Medium
-    if(TYPE[1])
-      ID=4;     //Se il Medium è stato preso, setto ID a 4 per prendere i Small
-    if(TYPE[2]){
-      TYPE[1] = false;
-      ID=2; //se ho preso anche uno Small, passo di nuovo al Medium e poi all'altro Small
-    }
+    //Trovo la posizione dei due oggetti dello stesso tipo
+    game.getItemLoc(obj1, ID);
+    game.getItemLoc(obj2, ID+1);
     
-    //Prelevo la posizione degli oggetti in base all'ID selezionato in precedenza
-    game.getItemLoc(d,ID);
-    //Tengo conto che gli oggetti hanno ID successivi
-    game.getItemLoc(d1,(ID+1));
+    //Se la distanza dall'oggetto con valore ID è maggiore rispetto alla distanza dall'oggetto con valore ID+1, prendo l'oggetto ID+1;
+    if ((dist(stato, obj1) + dist(obj1, zona)) > (dist(stato, obj2) + dist(obj2, zona)) || game.itemInZone(ID))
+            ID++;
     
-    if ((dist(stato, d)+dist(d, zona)) > (dist(stato, d1)+dist(d, zona)))
-        ID++;
-    //Controllo dell'oggetto più conveniente da prendere
-    /*if((dist(stato, d)+dist(d, zona)) > (dist(stato, d1)+dist(d1, zona)) && !game.hasItemBeenPickedUp(ID+1))
-        ID++;   //Se la funzione è vera, ovvero non posso prendere ID, prendo ID+1*/
-        
-    //L'oggetto da prendere è stato scelto e non devo più scegliere un oggetto
     itemChosen = true;
 }
 //Funzione per rilasciare l'oggetto
@@ -195,7 +186,7 @@ void dropItem()
     setV(vai, zona[0], zona[1], zona[2]);
     game.getItemLoc(obj, ID);
     
-    if (dist(vai, obj) < 0.05)
+    if (dist(vai, obj) < 0.045)
     {
         //Rilascia l'oggeto nella zona
         game.dropItem();
