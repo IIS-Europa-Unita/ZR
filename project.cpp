@@ -1,140 +1,299 @@
-char BoR; // R se sfera rossa, B se blu
-int fase,sottofase;
-float stato[12];
-float statoAvv[12];
-float vai[3];
-float punta[3];
-float posAvv[3];
-float pos[3];
-float facing[3];
-float vel[3];
-float speed;
-float zona[4];
+//Begin page main
+bool spsAllDrop, itemChosen, TYPE[4],blu;
+int fase, sottofase, ID;
+float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], R[3];
 
-float dist(float a[],float b[])/*Definitivo*/{
-	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
+//Funzione per prelevare dati
+void getDati()
+{
+    //Aggiorno dati miei
+    api.getMyZRState(stato);
+    //Aggiorno dati avversario
+	api.getOtherZRState(statoAvv);
+	
+	//Aggiorno i dati e ottengo mia posizione e pos avversario + direzione
+	for(int i = 0; i < 3; i++)
+	{
+		facing[i] = stato[i + 6];
+		posAvv[i] = statoAvv[i];
+		vel[i] = stato[i + 3];
+	}
+	
+	//Aggiorno la velocità
+	speed = mathVecMagnitude(vel,3);
+	
+	//Aggiorno quali oggetti abbiamo preso
+	
+	if(game.hasItem(ID) || game.itemInZone(ID))
+        switch (ID)
+        {
+            case 0: TYPE[0] = true; break;
+            case 1: TYPE[1] =true;break;
+            
+            case 2: case 3: TYPE[2] = true; break;
+            case 4: case 5: TYPE[3] = true; 
+        }
+    else
+        switch (ID)
+        {
+            case 0:  TYPE[0] = false; break;
+            case 1: TYPE[1] =false;break;
+            case 2: case 3: TYPE[2] = false; break;
+            case 4: case 5: TYPE[3] = false;
+        }
+    
+    DEBUG(("LARGE: %d / MEDIUM: %d / SMALL: %d", TYPE[0], TYPE[1], TYPE[2]));
 }
-
-void setV(float v[],float c[])/*Definitivo*/{
-	v[0] = c[0];
-	v[1] = c[1];
-	v[2] = c[2];
-}
-void setV(float v[],float x,float y,float z)/*Definitivo*/{
+//Funzione per settare un vettore
+void setV(float v[],float x,float y,float z)/*Definitivo*/
+{
 	v[0] = x;
 	v[1] = y;
 	v[2] = z;
 }
-
-bool oOB(float ptc[])/*Definitivo*/{
-	return fabsf(ptc[0]) > 0.75 || fabsf(ptc[1]) > 0.75 || fabsf(ptc[2]) > 0.75;
+//Funzione per il calcolo della distanza
+float dist(float a[],float b[])/*Definitivo*/
+{
+	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
 }
-
-void ruota()/*Definitivo*/{
-	float v[3];
-	mathVecSubtract(v,punta,pos,3);
-	mathVecNormalize(v,3);
-	api.setAttitudeTarget(v);
+//Funzione per il movimento
+void muovi()
+{
+    float vec[3];
+		mathVecSubtract(vec,vai,stato,3);
+	
+	if (spsAllDrop){
+	                
+	                //Se non abbiamo l'oggetto
+	                if (game.hasItem(ID) == 0)
+	                {
+	                    //Prendo posizione oggetto con ID stabilito da itemPriority
+	                    game.getItemLoc(vai, ID);
+    	                  
+    	                //Se la distanza è maggiore del raggio maggiore per prendere l'oggetto specifico
+    	                if (dist(vai, stato) > R[game.getItemType(ID)])
+    	                    api.setPositionTarget(vai); //Viaggio verso l'oggetto
+    	                    
+    	                //Altrimenti se è minore e la velocità è maggiore di 0.01
+    	                else if (speed > 0.01) 
+    	                        api.setPositionTarget(stato);
+	                }
+	                //Altrimenti se abbiamo l'oggetto
+    	            else if (game.hasItem(ID)==1)
+    	            {
+    	                //Richiamo la funzione dropItem per assegnare la posizione della zona e controllare quando rilasciare l'oggetto
+    	                dropItem();
+    	  
+    	                //Se la distanza è minore di 0.15, attiva il "freno" per avvicinarsi alla zona
+    	                if (dist(vai, stato) < 0.155)
+    	                    api.setPositionTarget(stato);
+    	                //Altrimenti utilizza il setPosition per avvicinarsi alla zona
+    	                else api.setPositionTarget(vai);
+    	            }
+    	                //Altrimenti se l'avversario ha l'oggetto -> Prendo un nuovo oggetto (da controllare strategicamente)
+    	                else 
+    	                {
+    	                   itemChosen=false;
+    	                }
+    	            
+    	            //Ruota viene sempre richiamato qui poichè è fondamentale
+    	            ruota();
+	}
+    else 
+        //Se la distanza alla posizione è minore di 0.13, rallenta per fermarsi
+        if (dist(vai, stato) < 0.13)
+                    api.setPositionTarget(stato);
+        //Altrimenti, se la posizione è maggiore di 0.50, aumenta la velocità
+        else 
+            if (dist(vai, stato) > 0.60)
+            {
+                api.setVelocityTarget(vec);
+                api.setPositionTarget(vai);
+            }
+            //Altrimenti, se si trova tra 0.13 e 0.60, utilizza il setPosition per rallentare la velocità senza fermarsi
+            else 
+                api.setPositionTarget(vai);
+	
+	        
 }
-
-void muovi(){
-	if(oOB(pos)){
-		for(int i = 0; i < 3; i++)
-			vai[i] = 0;
-	}
-	else{
-		float vec[3],d = dist(vai,pos);
-		DEBUG(("%f",d));
-		mathVecSubtract(vec,vai,pos,3);
-		if(d > 0.50)
-			api.setVelocityTarget(vec);
-		api.setPositionTarget(vai);
-		if(d < 0.1)
-			api.setPositionTarget(pos); //sostituisce frena())
-	}
+//Funzione per la rotazione
+void ruota()
+{
+    float vett[3];
+    
+    mathVecSubtract(vett,vai,stato,3);
+    mathVecNormalize(vett,3);
+    api.setAttitudeTarget(vett);
 }
-
-int checkDock(int id)/*boh*/{
-	float targ[3];
-	game.getItemLoc(targ,id); //Posizione dell'oggetto
-	float targD = dist(targ,pos); //Distanza dall'oggetto 
-	if(((id == 0 || id == 1) && targD < 0.151) ||
-	((id == 2 || id == 3) && targD < 0.138) ||
-	((id == 4 || id == 5) && targD < 0.124)){
-		DEBUG(("Do: vicini"));
-		return 1;
-	}
-	if(((id == 0 || id == 1) && targD > 0.173) ||
-	((id == 2 || id == 3) && targD > 0.160) ||
-	((id == 4 || id == 5) && targD > 0.146)){
-		DEBUG(("Do: lontani"));
-		return 2;
-	}
-	if(speed > 0.01){
-		DEBUG(("Do: Velocita"));
-		return 3;
-	}
-	return 0;
+//Funzione per il docking
+void dock()
+{
+    //Switch per eseguire il docking in base alla possibilità determinata da checkDock()    
+    switch (checkDock()){
+        
+        case true:  //Esegue il docking dell'oggetto
+                    game.dockItem(ID);
+                    break;
+                    
+        case false: DEBUG (("Dock impossibile")); //Parte da aggiungere
+    }
 }
-void dock(int id){
-	if(checkDock(id))/*docko*/{
-		game.dockItem();
-	}
+//Funzione per il controllo della possibilità di docking
+bool checkDock()
+{
+    switch (ID){
+        case 0: case 1: if (dist(stato, vai)>.151 && dist(stato, vai)<.173 && speed < .01)
+                            return true;
+                        else return false;
+                        break;
+                        
+        case 2: case 3: if (dist(stato, vai)>.138 && dist(stato, vai)<.160 && speed < .01)
+                            return true;
+                        else return false;
+                        break;
+                        
+        case 4: case 5: if (dist(stato, vai)>.124 && dist(stato, vai)<.146 && speed < .01)
+                            return true;
+                        else return false;
+    }
 }
-
-void init(){
-	for(int i = 0; i < 3; i++)vai[i] = punta[i] = 0;
+//Funzione per la scelta dell'item da prendere in base a condizioni di distanza
+void itemPriority()
+{
+    float obj1[3], obj2[3];
+    
+    //Se large = false (non lo abbiamo preso), prendo ID del large e così via
+    if (!TYPE[0])   //LARGE
+        ID = 0;
+    else 
+        if (!TYPE[1])   //MEDIUM
+            ID = 1;
+        else
+            if (!TYPE[2])   //SMALL
+                ID = 2;
+            else
+                if (!TYPE[3])   //SMALL
+                    ID = 4;
+    
+    //Trovo la posizione dei due oggetti dello stesso tipo
+    game.getItemLoc(obj1, ID);
+    game.getItemLoc(obj2, ID+1);
+    
+    //Se la distanza dall'oggetto con valore ID è maggiore rispetto alla distanza dall'oggetto con valore ID+1, prendo l'oggetto ID+1;
+    if (((dist(stato, obj1) + dist(obj1, zona)) > (dist(stato, obj2) + dist(obj2, zona)) || (game.itemInZone(ID))))
+            ID++;
+    
+    itemChosen = true;
+}
+//Funzione per rilasciare l'oggetto
+void dropItem()
+{
+    float obj[3];
+    //Settiamo al vettore vai la zona per il rilascio dell'oggetto
+    setV(vai, zona[0], zona[1], zona[2]);
+    game.getItemLoc(obj, ID);
+    
+    if (dist(vai, obj) < 0.045)
+    {
+        //Rilascia l'oggeto nella zona
+        game.dropItem();
+            
+        //Avendo lasciato l'oggetto precedentemente preso, devo sceglierne un altro
+        itemChosen = false;
+    }
+}
+//Funzione per l'inizializzazione delle variabili (eseguito solo una volta)
+void init()
+{
+    //Azzero vai
+    for (int i = 0; i < 3; i++)
+        vai[i]=0;
+    
+    //Valori dei raggi massimi per oggetti LARGE (0); MEDIUM (1); SMALL (2)
+    R[0] = .23;
+    R[1] = .23;
+    R[2] = .23;
+    
+    //Prelevo il mio stato
 	api.getMyZRState(stato);
-	BoR = stato[1] > 0 ? 'R' : 'B'; //capisco quale sfera siamo
-	fase = sottofase = 0;
+	
+	//Capisco quale sfera siamo
+	if(stato[1]>0){
+	    blu=true;
+	}else blu=false;
+	
+	//Inizializzo le variabili
+	fase = sottofase = ID = 0;
+	spsAllDrop = itemChosen = false;
+	
+	TYPE[0] = false;
+    TYPE[1] = false;
+    TYPE[2] = false;
 }
-
-void inizio(){
-	api.getMyZRState(stato); //aggiorno dati miei
-	api.getOtherZRState(statoAvv); //aggiorno dati avversario
-	for(int i = 0; i < 3; i++){
-		pos[i] = stato[i];
-		facing[i] = stato[i + 6];
-		posAvv[i] = statoAvv[i];
-		vel[i] = stato[i + 3];
-	}//ottengo pos + dir miei e pos avversario
-	speed = mathVecMagnitude(vel,3);
-}
-
-void fine(){
-	ruota(); //rotazione verso punta[]
-	muovi(); //spostamento verso vai[]
-}
-
-void loop(){
-    inizio();
-	switch(fase){
-        case 0://drop SPSs, i cosi per sapere dove si trova la zhohona
-            if (sottofase==0 && dist(vai,pos)<0.1){
+//Funzione per l'applicazione della strategia e delle funzioni
+void loop()
+{
+    //Prelevo i dati all'inizio dello switch
+    getDati();
+    //Lo siwtch controlla il drop degli sps
+    switch(fase){
+        //case 0: Droppo gli sps alla posizione stabilita tramite setV()
+        case 0:
+            //Droppo il primo SPS
+            if (sottofase == 0)
+            {
                 game.dropSPS();
                 sottofase++;
-                setV(vai, -0.4, -0.5, 0);
-                //game.getItemLoc(vai,1);
+                if(blu)
+                    setV(vai,-0.3,-0.5,0);
+                else setV(vai,0.3,0.5,0);
+                //setV(vai, -0.25, 0.45, .0); **Alternativo
             }
-            else if (sottofase==1 && dist(vai,pos)<0.1){
+            //Droppo il secondo SPS
+            else if (sottofase == 1 && dist(vai,stato) <0.1)
+            {
                 game.dropSPS();
                 sottofase++;
-                setV(vai, -0.2, 0.3, 0);
-                //game.getItemLoc(vai,5);
+                if(blu)
+                    setV(vai,-0.3,0.5,0);
+                else setV(vai,0.3,-0.5,0);
+                //setV(vai, -0.25, -0.1, -0.25); **Alternativo
             }
-            else if(sottofase==2 && dist(vai,pos)<0.1){
+            //Droppo il terzo SPS
+            else if(sottofase == 2 && dist(vai,stato) < 0.1)
+            {
                 game.dropSPS();
-                sottofase=0;
-                fase++;
+                spsAllDrop = true;  //Tutti gli SPS sono stati droppati
+                sottofase = 0;      //Riazzero la sottofase -> Viene utilizzato in fase2
+                fase++;             //Cambio fase
             }
-        break;
-        case 1://getZone
-            if(!game.getZone(zona)){//se true, carica anche la posizione della sfera in zona
-                fase--;
+        
+        case 1:
+            //Trovo la zona
+            if (sottofase == 0)
+            {
+                game.getZone(zona);
+                sottofase++;
             }
-        break;
-        default:
-        DEBUG(("ERROR"));
+            //Prendo e posiziono gli oggetti
+            else if (sottofase == 1)
+            {
+                //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
+                if (!itemChosen)
+                    itemPriority();
+                DEBUG(("ID: %d", ID));
+                
+                if (game.hasItem(ID) == 0)
+                    {
+                        dock();     //funzione per il docking
+                    }
+            }
+            break;
+        
+        default:    DEBUG(("ERROR"));
 	}
-	fine();
+	
+	DEBUG (("/x:%f y:%f z:%f \n/ vel: %f \n/ fase: %d", vai[0], vai[1], vai[2], speed, fase));
+	muovi();    //Si muove verso vai[]
 }
+//End page main
