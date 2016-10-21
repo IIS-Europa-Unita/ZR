@@ -228,20 +228,19 @@ void itemPriority()
     int obj;	//Oggetto esaminato per la scelta
     ID=-1;
     obj=0;
-    // Sceglie l'oggetto su cui andare, dando prioritÃ  a quello piÃ¹ vicino : LARGE->MEDIUM->SMALL
+    // Sceglie l'oggetto su cui andare, dando priorita a quello piu vicino : LARGE->MEDIUM->SMALL
     while (ID==-1) {
         // Leggiamo la posizione degli oggetti dello stesso tipo
 	    game.getItemLoc(obj1, obj);
     	game.getItemLoc(obj2, obj+1);
-        // Verifichiamo quale dei 2 oggetti dello stesso tipo Ã¨ piÃ¹ vicino
+        // Verifichiamo quale dei 2 oggetti dello stesso tipo e piu vicino
     	if ((dist(obj1, stato) + dist(obj1, zona)) < (dist(obj2, stato) + dist(obj2, zona))) {
-    	DEBUG(("SONO NEL PRIMO IF"));
-    		// Se Ã¨ piÃ¹ vicino il primo oggetto di un determinato tipo
+    		// Se e piu vicino il primo oggetto di un determinato tipo
     		if(game.hasItem(obj) !=1 && (!game.itemInZone(obj)))	//PRIMO 
         		ID = obj;
         	else {	
         		if(game.hasItem(obj+1) !=1 && (!game.itemInZone(obj+1)))	//SECONDO
-            		ID = obj+1; DEBUG(("SONO NELL ELSE DEL SECONDO IF"));		
+            		ID = obj+1; 
 			}
     	}
 		else {
@@ -317,7 +316,7 @@ void init()
 	BoR = stato[1] > 0 ? 1 : 0;     //1 = Blu / 0 = Rossa
 	
 	//Inizializzo le variabili
-	fase = sottofase = ID = 0;
+	fase = sottofase = 0;
 	spsAllDrop = itemChosen = false;
 	
 }
@@ -358,7 +357,8 @@ void loop()
                 sottofase = 0;      //Riazzero la sottofase -> Viene utilizzato in fase2
                 fase++;             //Cambio fase
             }
-       
+        break;
+        //il break e stato rinserito a causa di un problema con l'itemPriority
         case 1:
             //Trovo la zona
             if (sottofase == 0)
@@ -367,24 +367,23 @@ void loop()
                 sottofase++;
             }
             //Prendo e posiziono gli oggetti
-            else if (sottofase == 1)
-            {
-                //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
-                if (!itemChosen)
-                   itemPriority();
-                DEBUG(("ID: %d", ID));
+            else if (sottofase == 1){
+                    //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
+                    if (!itemChosen)
+                        itemPriority();
+                    //DEBUG(("ID: %d", ID));
                
-                if (game.hasItem(ID) == 0)
+                    if (game.hasItem(ID) == 0)
                     {
                         dock();     //funzione per il docking
                     }
-            }
+                }
             break;
        
         default:    DEBUG(("ERROR"));
     }
     
-    DEBUG (("/x:%f y:%f z:%f \n/ vel: %f \n/ fase: %d", vai[0], vai[1], vai[2], speed, fase));
+    //DEBUG (("/x:%f y:%f z:%f \n/ vel: %f \n/ fase: %d", vai[0], vai[1], vai[2], speed, fase));
     muovi();    //Si muove verso vai[]
 }
 //End page main
