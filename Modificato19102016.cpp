@@ -210,10 +210,24 @@ void ruota()
                     _se checkDock() = false:
                                             _Non eseguo alcuna operazione fino a quando checkDock non ritornerà "true"
 */
-void dock()
+bool dock()
 {
-    if (checkDock())
+    if (checkDock()) {
         game.dockItem(ID);
+        DEBUG (("Stato oggetto %d :%d",ID,game.hasItem(ID)));
+        /*Questa parte servirebbe per sgnaciare ultimo SPS vicino al primo
+            LARGE da prendere; da studiare, perchè così aumenta SPS error
+        //Se non ho ancora sganciato l'ultimo SPS lo sgancio
+        if (game.getNumSPSHeld()>0) {
+            game.dropSPS();
+            DEBUG (("Ultimo SPS   ID: %d",ID));
+            // Preleva i dati della zona
+            game.getZone(zona);
+        } */
+        return true;
+    }
+    else
+        return false;
 }
 //FUNZIONE PER IL CONTROLLO DELLA POSSIBILITA' DI DOCKING **FUNZIONA**
 /*
@@ -228,21 +242,12 @@ void dock()
 */
 bool checkDock()
 {
-    switch (ID){
-        case 0: case 1: if (dist(stato, vai)>.151 && dist(stato, vai)<.173 && speed < .01)
-                            return true;
-                        else return false;
-                        break;
-                        
-        case 2: case 3: if (dist(stato, vai)>.138 && dist(stato, vai)<.160 && speed < .01)
-                            return true;
-                        else return false;
-                        break;
-                        
-        case 4: case 5: if (dist(stato, vai)>.124 && dist(stato, vai)<.146 && speed < .01)
-                            return true;
-                        else return false;
-    }
+    float distdock [6][2] = {	{.151,.173}, {.151,.173},
+                               	{ .138 , .160 },{ .138 , .160 },
+                          		{ .124 , .146 },{ .124 , .146 } 
+    };
+    return (dist(stato, vai)>distdock[ID][0] && dist(stato, vai)< distdock[ID][1] && speed < .01? 
+	true : false );
 }
 //FUNZIONE PER LA SCELTA DELL'OGGETTO **FUNZIONA**
 /*
@@ -308,18 +313,20 @@ void itemPriority()
                     
                 _Altrimenti non succede nulla
 */
-void dropItem()
+bool dropItem()
 {
     float obj[3];
     setV(vai, zona[0], zona[1], zona[2]);
     game.getItemLoc(obj, ID);
     
-    if (dist(zona, obj) < 0.035)
+    if (dist(vai, obj) <0.05)
     {
         game.dropItem();
-        
         itemChosen = false;
+        return true;
     }
+    else
+    	return false;
 }
 //FUNZIONE PER L'INIZIALIZZAZIONE DELLE VARIABILI **FUNZIONA**
 /*
@@ -370,8 +377,7 @@ void loop()
                 {
                     game.dropSPS();
                     sottofase++;
-                    if(BoR)
-                        setV(vai,-0.3,-0.5,0);
+                    if(BoR) setV(vai,-0.3,-0.5,0);
                     else setV(vai,0.3,0.5,0);
                     //setV(vai, -0.25, 0.45, .0); **Alternativo
                 }
@@ -380,8 +386,7 @@ void loop()
                 {
                     game.dropSPS();
                     sottofase++;
-                    if(BoR)
-                        setV(vai,-0.3,0.5,0);
+                    if(BoR) setV(vai,-0.3,0.5,0);
                     else setV(vai,0.3,-0.5,0);
                     //setV(vai, -0.25, -0.1, -0.25); **Alternativo
                 }
@@ -389,32 +394,35 @@ void loop()
                 else if(sottofase == 2 && dist(vai,stato) < 0.1)
                 {
                     game.dropSPS();
+		    game.getZone(zona);
                     sottofase = 0;      //Riazzero la sottofase -> Viene utilizzato in fase2
                     fase++;             //Cambio fase
                 }
        
         case 1:
-                //Trovo la zona
-                if (sottofase == 0)
-                {
-                    game.getZone(zona);
-                    sottofase++;
-                }
-                //Prendo e posiziono gli oggetti
-                else if (sottofase == 1)
-                {
-                    //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
-                    if (!itemChosen)
-                       itemPriority();
-                    DEBUG(("ID: %d", ID));
-                   
-                    if (game.hasItem(ID) == 0)
-                        {
-                            dock();     //funzione per il docking
-                        }
-                }
-                break;
-       
+                switch(sottofase){
+	        //Vado a prendere un oggetto
+         	   	case 0:
+	                //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
+    	        	if (!itemChosen)
+        	           	itemPriority();
+            	    	DEBUG(("ID: %d", ID));
+               
+                	if (game.hasItem(ID) == 0)
+                    	if (dock())     //Tento di fare il docking;se ci riesco vado a posarlo in zona di assembleaggio
+                        	sottofase++;
+                	else
+                	    if (game.hasItem(ID) == 2)
+                			itemChosen=false;	//l'oggetto verso cui andavamo è stato preso dall'avversario
+                
+			break;
+				//Vado a posare l'oggetto	
+			case 1:
+				if (dropItem())
+				//Porto sottofase a a 0 quando l'ho posato, per ricomincaire con un altro oggetto
+					sottofase=0;
+			break;
+			}
         default:    DEBUG(("ERROR"));
     }
     
