@@ -58,14 +58,13 @@ void getDati()
 	{
     	if(!game.itemInZone(id))
             TYPE[id] = true;    //Possiamo prenderlo
-        else
-            if (game.itemInZone(id) || (game.hasItem(id) == 2))
+        if (game.itemInZone(id) || game.hasItem(id) == 2 )
             TYPE[id] = false;   //Non possiamo prenderlo
 	}
     
     DEBUG(("LARGE-0: %d / LARGE-1: %d / MEDIUM-2: %d / MEDIUM-3: %d / SMALL-4: %d / SMALL-5: %d", TYPE[0], TYPE[1], TYPE[2], TYPE[3], TYPE[4], TYPE[5]));
     
-    if (TYPE[0] && TYPE[1])
+    if (game.itemInZone(0) && game.itemInZone(1))
         objLargeAllHeld = true;
     else
         objLargeAllHeld = false;
@@ -128,6 +127,8 @@ void muovi()
                     
                 else if (speed > 0.01) 
                         api.setPositionTarget(stato);
+                
+                ruota();
             }
             else if (game.hasItem(ID))
             {
@@ -135,18 +136,18 @@ void muovi()
                     api.setPositionTarget(stato);
                 else api.setPositionTarget(vai);
                 
-                if (dist(vai, stato) < 0.05)
+                if (dist(vai, stato) < 0.1)
                 {
                     setV(vai, .0, .0, .0);
                     api.setPositionTarget(vai);
                 }
+                
+                ruota();
             }
                 else 
                 {
                    itemChosen=false;
                 }
-                
-            ruota();
 	}
     else 
         if (dist(vai, stato) < 0.15)
@@ -158,9 +159,7 @@ void muovi()
                 api.setPositionTarget(vai);
             }
             else 
-                api.setPositionTarget(vai);
-	
-	        
+                api.setPositionTarget(vai); 
 }
 
 //FUNZIONE PER LA ROTAZIONE **FUNZIONA**
@@ -197,7 +196,10 @@ bool dock()
     {
         game.dockItem(ID);
         DEBUG (("Stato oggetto %d :%d",ID,game.hasItem(ID)));
-        return true;
+        if (game.hasItem(ID))
+            return true;
+        else 
+            return false;
     }
     else
         return false;
@@ -245,9 +247,7 @@ void itemPriority()
             ID = 2;
         else
             if (TYPE[4] || TYPE[4])   //SMALL
-            {
                 ID = 4;
-            }
     
     ID2 = ID+1;
     
@@ -261,7 +261,9 @@ void itemPriority()
     */
     if (((dist(objID, zona) > dist(objID2, zona)) || (dist(statoAvv, objID) < dist(stato, objID))) && TYPE[ID2])
         ID = ID2;
-    
+    if (!TYPE[ID])
+        ID = ID2;
+
     game.getItemLoc(vai, ID);
     itemChosen = true;
 }
@@ -308,7 +310,7 @@ void init()
         vai[i]=0;
     
     //Valori dei raggi massimi per oggetti LARGE (0); MEDIUM (1); SMALL (2)
-    R[0] = .23;
+    R[0] = .27;
     R[1] = .23;
     R[2] = .23;
     
@@ -344,8 +346,8 @@ void loop()
                     case 0: //Droppo il primo SPS
                             game.dropSPS();
                             sottofase++;
-                            if(BoR) setV(vai,-0.3,-0.5,0);
-                            else setV(vai,0.3,0.5,0);
+                            if(BoR) setV(vai,-0.6,0.5,0.3);
+                                else setV(vai,0.3,-0.5,-0.3);
                             //setV(vai, -0.25, 0.45, .0); **Alternativo
                             break;
                             
@@ -354,8 +356,7 @@ void loop()
                             {
                                 game.dropSPS();
                                 sottofase++;
-                                if(BoR) setV(vai,-0.3,0.5,0);
-                                else setV(vai,0.3,-0.5,0);
+                                
                                 //setV(vai, -0.25, -0.1, -0.25); **Alternativo
                             }
                             break;
@@ -363,9 +364,8 @@ void loop()
                     case 2: //Droppo il terzo SPS se la distanza dalla destinazione è minore di 0.2
                             if (dist(vai, stato) < 0.2)
                             {
-                                game.dropSPS();
-		                        game.getZone(zona);
-                                sottofase = 0;      //Riazzero la sottofase -> Viene utilizzato in fase2
+                                     //Riazzero la sottofase -> Viene utilizzato in fase2
+                                sottofase=0;
                                 fase++;             //Cambio fase
                             }
                             break;
@@ -380,17 +380,24 @@ void loop()
         	                //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
             	        	if (!itemChosen)
                 	           	itemPriority();
-                    	    	DEBUG(("ID: %d", ID));
+                    	    DEBUG(("ID: %d", ID));
                        
-                            //Tento di fare il docking;se ci riesco vado a posarlo in zona di assembleaggio
-                        	if (!game.hasItem(ID))
-                            	if (dock())
-                                	sottofase++;
-                        	else
-                        	    //l'oggetto verso cui andavamo è stato preso dall'avversario
-                        	    if (game.hasItem(ID) == 2)
+                    	    //l'oggetto verso cui andavamo è stato preso dall'avversario
+                    	    if (game.hasItem(ID) == 2)
                         			itemChosen = false;
-            			    break;
+                            //Tento di fare il docking;se ci riesco vado a posarlo in zona di assembleaggio
+                        	else 
+                        	    if (!game.hasItem(ID))
+                            	    if (dock())
+                            	    {
+                            	        if (game.getNumSPSHeld() > 0)
+                            	        {
+                                	        game.dropSPS();
+    		                                game.getZone(zona);
+                            	        }
+                            	        sottofase++;
+                            	    }
+               			    break;
         			
         			//Vado a posare l'oggetto	
         			case 1: //Porto sottofase a a 0 quando l'ho posato, per ricomincaire con un altro oggetto
