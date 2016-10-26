@@ -1,6 +1,6 @@
-bool itemChosen, objLargeAllHeld, TYPE[6];
-int fase, sottofase, ID, BoR;
-float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], R[3];
+bool itemChosen, objLargeAllHeld;
+int fase, sottofase, ID, BoR, ogg;
+float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], dropError, R[3];
 
 //FUNZIONE PER SETTARE UN VETTORE **FUNZIONA**
 /*
@@ -54,16 +54,6 @@ void getDati()
         
 	speed = mathVecMagnitude(vel,3);
 	
-	for (int id = 0; id <6; id++)
-	{
-    	if(!game.itemInZone(id))
-            TYPE[id] = true;    //Possiamo prenderlo
-        if (game.itemInZone(id) || game.hasItem(id) == 2 )
-            TYPE[id] = false;   //Non possiamo prenderlo
-	}
-    
-    DEBUG(("LARGE-0: %d / LARGE-1: %d / MEDIUM-2: %d / MEDIUM-3: %d / SMALL-4: %d / SMALL-5: %d", TYPE[0], TYPE[1], TYPE[2], TYPE[3], TYPE[4], TYPE[5]));
-    
     if (game.itemInZone(0) && game.itemInZone(1))
         objLargeAllHeld = true;
     else
@@ -113,7 +103,7 @@ void getDati()
                                 prima di arrivare al punto e evitare quindi di mancarlo
                             
 */
-void muovi()
+/*void muovi()
 {
     float vec[3];
 		mathVecSubtract(vec,vai,stato,3);
@@ -160,6 +150,41 @@ void muovi()
             }
             else 
                 api.setPositionTarget(vai); 
+}*/
+void muovi()
+{
+    float vec[3];
+    mathVecSubtract(vec, vai, stato, 3);
+    
+    if (dist(vai, stato) > 0.8)
+        api.setVelocityTarget(vec);
+    else
+    {
+        if (itemChosen == true)
+        {
+            if (dist(vai, stato) > R[game.getItemType(ID)])
+                    api.setPositionTarget(vai);
+                    
+                else if (speed > 0.01) 
+                        api.setPositionTarget(stato);
+            
+            if (dist(zona, stato) < dropError)
+            {
+                setV (vai, 0.0, 0.0, 0.0);
+                api.setPositionTarget(vai);
+            }
+        }
+        else
+        {
+            if (dist(vai, stato) > 0.2)
+                api.setPositionTarget(vai);
+            else
+                api.setPositionTarget(stato);
+        }
+    }
+    
+    if (itemChosen || game.hasItem(ID))
+        ruota();
 }
 
 //FUNZIONE PER LA ROTAZIONE **FUNZIONA**
@@ -235,37 +260,95 @@ bool checkDock()
                 La funzione scelgoQuale determina quale dei 2 oggetti di un 
                 determinato tipo conviene andare a prendere 
 */
-void itemPriority()
+/*void itemPriority()
 {
-    float objID[3], objID2[3];
-    int ID2;
+    do{
+        float objID[3], objID2[3];
+        int ID2;
+        
+        if (TYPE[0] || TYPE[1])   //LARGE
+            ID = 0;
+        else 
+            if (TYPE[2] || TYPE[3])   //MEDIUM
+                ID = 2;
+            else
+                if (TYPE[4] || TYPE[4])   //SMALL
+                    ID = 4;
+        
+        ID2 = ID+1;
+        
+        game.getItemLoc(objID, ID);
+        game.getItemLoc(objID2, ID2);
+        
+        Se la distanza tra ID / Zona è maggiore di ID2 / Zona oppure la distanza avversario / oggetto è minore di noi / oggetto
+        e ID2 disponibile
+        -> Prendo oggetto ID2
+        
+        if (TYPE[ID] && TYPE[ID2])
+            if (dist(statoAvv, objID2) > dist(stato, objID2))
+                ID = ID2;
+        
+            
+        game.getItemLoc(vai, ID);
+    }while (!itemChosen)
+}
+*/
+void itemPriorityV2()
+{
+    float obj[3], obj2[3];
     
-    if (TYPE[0] || TYPE[1])   //LARGE
+    if (ID > 5)
         ID = 0;
-    else 
-        if (TYPE[2] || TYPE[3])   //MEDIUM
-            ID = 2;
+        
+    do
+    {
+        //Abbiamo preso tutti e due e sono nella zona
+        if (game.itemInZone(ogg) && game.itemInZone(ogg+1))
+            ogg+=2;
+        
         else
-            if (TYPE[4] || TYPE[4])   //SMALL
-                ID = 4;
-    
-    ID2 = ID+1;
-    
-    game.getItemLoc(objID, ID);
-    game.getItemLoc(objID2, ID2);
-    
-    /*  
-    Se la distanza tra ID / Zona è maggiore di ID2 / Zona oppure la distanza avversario / oggetto è minore di noi / oggetto
-    e ID2 disponibile
-    -> Prendo oggetto ID2
-    */
-    if (((dist(objID, zona) > dist(objID2, zona)) || (dist(statoAvv, objID) < dist(stato, objID))) && TYPE[ID2])
-        ID = ID2;
-    if (!TYPE[ID])
-        ID = ID2;
-
-    game.getItemLoc(vai, ID);
-    itemChosen = true;
+        {
+            if (!game.itemInZone(ogg) && !game.itemInZone(ogg+1))
+            {
+            
+                //Entrambi gli oggetti sono disponibili
+                    if (dist(stato, obj)+dist(zona, obj) < dist(stato, obj2)+dist(zona, obj2))
+                        ID = ogg;
+                    else
+                        ID = ogg+1;
+                    
+                    game.getItemLoc(obj, ID);
+                    
+                    if (dist(statoAvv, obj) < dist(stato, obj) && !game.hasItem(ID))
+                        if (ID == ogg)
+                            ID = ogg+1;
+                        else
+                            ID = ogg;
+                    
+                    itemChosen = true;
+                    game.getItemLoc(vai, ID);
+            }
+            else
+            {
+                //Solo uno dei due disponibile    
+                if (game.itemInZone(ogg))
+                    ID = ogg+1;
+                else 
+                    ID = ogg;
+                
+                game.getItemLoc(obj, ID);
+                
+                if (dist(statoAvv, obj) > dist(stato, obj) && !game.hasItem(ID))
+                {
+                    game.getItemLoc(vai, ID);
+                    itemChosen = true;
+                }
+                else
+                    //Cambio colore
+                    ogg+=2;
+            }
+        }
+    }while (!itemChosen);
 }
 
 //FUNZIONE PER LO SGANCIO DI UN OGGETTO **FUNZIONA**
@@ -287,7 +370,7 @@ bool dropItem()
     setV(vai, zona[0], zona[1], zona[2]);
     game.getItemLoc(obj, ID);
     
-    if (dist(vai, obj) <0.05)
+    if (dist(vai, obj) <= dropError)
     {
         game.dropItem();
         itemChosen = false;
@@ -321,15 +404,8 @@ void init()
 	BoR = stato[1] > 0 ? 1 : 0;     //1 = Blu / 0 = Rossa
 	
 	//Inizializzo le variabili
-	fase = sottofase = ID = 0;
+	fase = sottofase = ID = dropError = ogg = 0;
 	itemChosen = objLargeAllHeld = false;
-	
-	TYPE[0] = true;
-	TYPE[1] = true;
-	TYPE[2] = true;
-	TYPE[3] = true;
-	TYPE[4] = true;
-	TYPE[5] = true;
 }
 
 //Funzione per l'applicazione della strategia e delle funzioni **FUNZIONA**
@@ -346,7 +422,7 @@ void loop()
                     case 0: //Droppo il primo SPS
                             game.dropSPS();
                             sottofase++;
-                            if(BoR) setV(vai,-0.6,0.5,0.3);
+                            if(BoR) setV(vai,-0.6,0.5,0.0);
                                 else setV(vai,0.3,-0.5,-0.3);
                             //setV(vai, -0.25, 0.45, .0); **Alternativo
                             break;
@@ -379,7 +455,7 @@ void loop()
              	   	case 0:
         	                //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
             	        	if (!itemChosen)
-                	           	itemPriority();
+                	           	itemPriorityV2();
                     	    DEBUG(("ID: %d", ID));
                        
                     	    //l'oggetto verso cui andavamo è stato preso dall'avversario
@@ -394,6 +470,10 @@ void loop()
                             	        {
                                 	        game.dropSPS();
     		                                game.getZone(zona);
+    		                                if (zona[3] < 0.110)
+    		                                    dropError = zona[3] - 0.04;
+    		                                else
+    		                                    dropError = zona[3] - 0.070;
                             	        }
                             	        sottofase++;
                             	    }
@@ -402,26 +482,18 @@ void loop()
         			//Vado a posare l'oggetto	
         			case 1: //Porto sottofase a a 0 quando l'ho posato, per ricomincaire con un altro oggetto
         				    if (dropItem())
-        					    sottofase++;
-        			        break;
-        			        
-        			case 2: //Difendo la zona se ho tutti e due gli oggetti large
-        			        if (objLargeAllHeld || (game.getFuelRemaining() < 10))
-        			        {
-        			            api.setPositionTarget(zona);
-        			            DEBUG (("DIFENDI"));
-        			        }
-        			        else 
-        			        {
-        			            sottofase = 0;
-        			            DEBUG (("VAI TRA"));
-        			        }
+        					    sottofase = 0;
         			        break;
     			}
     			break;
         default:    DEBUG(("ERROR"));
     }
-    
-    DEBUG (("fase: %d / sottofase: %d", fase, sottofase));
-    muovi();    //Si muove verso vai[]
+    if ((objLargeAllHeld || (game.getFuelRemaining() < 10)) && !game.hasItem(ID))
+        {
+            api.setPositionTarget(zona);
+            DEBUG (("DIFENDI"));
+        }
+    else
+        muovi();    //Si muove verso vai[]
+    DEBUG (("fase: %d / sottofase: %d / errore: %f", fase, sottofase, dropError));
 }
