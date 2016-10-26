@@ -1,5 +1,5 @@
 bool itemChosen, objLargeAllHeld;
-int fase, sottofase, ID, BoR, ogg;
+int fase, sottofase, ID, BoR;
 float vai[3], zona[4], speed, stato[12], statoAvv[12], facing[3], posAvv[3], vel[3], oggetto[3], dropError, R[3];
 
 //FUNZIONE PER SETTARE UN VETTORE **FUNZIONA**
@@ -103,54 +103,6 @@ void getDati()
                                 prima di arrivare al punto e evitare quindi di mancarlo
                             
 */
-/*void muovi()
-{
-    float vec[3];
-		mathVecSubtract(vec,vai,stato,3);
-	
-	if (fase == 1)
-	{
-            if (!game.hasItem(ID))
-            {
-                if (dist(vai, stato) > R[game.getItemType(ID)])
-                    api.setPositionTarget(vai);
-                    
-                else if (speed > 0.01) 
-                        api.setPositionTarget(stato);
-                
-                ruota();
-            }
-            else if (game.hasItem(ID))
-            {
-                if (dist(vai, stato) < 0.20)
-                    api.setPositionTarget(stato);
-                else api.setPositionTarget(vai);
-                
-                if (dist(vai, stato) < 0.1)
-                {
-                    setV(vai, .0, .0, .0);
-                    api.setPositionTarget(vai);
-                }
-                
-                ruota();
-            }
-                else 
-                {
-                   itemChosen=false;
-                }
-	}
-    else 
-        if (dist(vai, stato) < 0.15)
-            api.setPositionTarget(stato);
-        else 
-            if (dist(vai, stato) > 0.63)
-            {
-                api.setVelocityTarget(vec);
-                api.setPositionTarget(vai);
-            }
-            else 
-                api.setPositionTarget(vai); 
-}*/
 void muovi()
 {
     float vec[3];
@@ -216,9 +168,16 @@ void ruota()
                                             _Non eseguo alcuna operazione fino a quando checkDock non ritornerà "true"
 */
 bool dock()
-{
-    if (checkDock()) 
-    {
+{   
+    bool checkDoc;
+    float distdock [6][2] = {	{.151,.173}, {.151,.173},
+                               	{ .138 , .160 },{ .138 , .160 },
+                          		{ .124 , .146 },{ .124 , .146 }
+                          	};
+
+    checkDoc=dist(stato, vai)>distdock[ID][0] && dist(stato, vai)< distdock[ID][1] && speed < .01? true:false; 
+
+    if (checkDoc){
         game.dockItem(ID);
         DEBUG (("Stato oggetto %d :%d",ID,game.hasItem(ID)));
         if (game.hasItem(ID))
@@ -230,27 +189,6 @@ bool dock()
         return false;
 }
 
-//FUNZIONE PER IL CONTROLLO DELLA POSSIBILITA' DI DOCKING
-/*
--input: non riceve alcun valore in input
--output:    _true = Ã¨ possibile eseguire il docking
-            _false = non Ã¨ possibile eseguire il docking
--descrizione:   _Uno switch permette di controllare, in base all'ID scelto tramite l'"itemPriority", quali sono i range e la velocitÃ 
-                a cui Ã¨ consentito il docking (in base al tipo di oggetto):
-                
-                _Se questi range vengono rispettati, la funzione ritorna "true"
-                _Se questi range non vengono rispettati, ritorna "false"
-*/
-bool checkDock()
-{
-    float distdock [6][2] = {	{.151,.173}, {.151,.173},
-                               	{ .138 , .160 },{ .138 , .160 },
-                          		{ .124 , .146 },{ .124 , .146 } 
-    };
-    return (dist(stato, vai)>distdock[ID][0] && dist(stato, vai)< distdock[ID][1] && speed < .01? 
-	true : false );
-}
-
 //FUNZIONE PER LA SCELTA DELL'OGGETTO
 /*
 -input:     non assume alcun valore in input
@@ -260,45 +198,10 @@ bool checkDock()
                 La funzione scelgoQuale determina quale dei 2 oggetti di un 
                 determinato tipo conviene andare a prendere 
 */
-/*void itemPriority()
-{
-    do{
-        float objID[3], objID2[3];
-        int ID2;
-        
-        if (TYPE[0] || TYPE[1])   //LARGE
-            ID = 0;
-        else 
-            if (TYPE[2] || TYPE[3])   //MEDIUM
-                ID = 2;
-            else
-                if (TYPE[4] || TYPE[4])   //SMALL
-                    ID = 4;
-        
-        ID2 = ID+1;
-        
-        game.getItemLoc(objID, ID);
-        game.getItemLoc(objID2, ID2);
-        
-        Se la distanza tra ID / Zona è maggiore di ID2 / Zona oppure la distanza avversario / oggetto è minore di noi / oggetto
-        e ID2 disponibile
-        -> Prendo oggetto ID2
-        
-        if (TYPE[ID] && TYPE[ID2])
-            if (dist(statoAvv, objID2) > dist(stato, objID2))
-                ID = ID2;
-        
-            
-        game.getItemLoc(vai, ID);
-    }while (!itemChosen)
-}
-*/
 void itemPriorityV2()
 {
+    int ogg = 0;
     float obj[3], obj2[3];
-    
-    if (ID > 5)
-        ID = 0;
         
     do
     {
@@ -319,7 +222,7 @@ void itemPriorityV2()
                     
                     game.getItemLoc(obj, ID);
                     
-                    if (dist(statoAvv, obj) < dist(stato, obj) && !game.hasItem(ID))
+                    if (dist(statoAvv, obj) < dist(stato, obj) && (game.hasItem(ID) == 2))
                         if (ID == ogg)
                             ID = ogg+1;
                         else
@@ -404,7 +307,7 @@ void init()
 	BoR = stato[1] > 0 ? 1 : 0;     //1 = Blu / 0 = Rossa
 	
 	//Inizializzo le variabili
-	fase = sottofase = ID = dropError = ogg = 0;
+	fase = sottofase = ID = dropError = 0;
 	itemChosen = objLargeAllHeld = false;
 }
 
@@ -422,7 +325,7 @@ void loop()
                     case 0: //Droppo il primo SPS
                             game.dropSPS();
                             sottofase++;
-                            if(BoR) setV(vai,-0.6,0.5,0.0);
+                            if(BoR) setV(vai,-0.6,0.5,0.3);
                                 else setV(vai,0.3,-0.5,-0.3);
                             //setV(vai, -0.25, 0.45, .0); **Alternativo
                             break;
@@ -471,9 +374,12 @@ void loop()
                                 	        game.dropSPS();
     		                                game.getZone(zona);
     		                                if (zona[3] < 0.110)
-    		                                    dropError = zona[3] - 0.04;
+    		                                    dropError = zona[3] - 0.06;
     		                                else
-    		                                    dropError = zona[3] - 0.070;
+    		                                    if (zona[3] < 0.150)
+    		                                        dropError = zona[3] - 0.09;
+    		                                    else 
+    		                                        dropError = zona[3] - 0.12;
                             	        }
                             	        sottofase++;
                             	    }
@@ -488,7 +394,7 @@ void loop()
     			break;
         default:    DEBUG(("ERROR"));
     }
-    if ((objLargeAllHeld || (game.getFuelRemaining() < 10)) && !game.hasItem(ID))
+    if (objLargeAllHeld || (game.getFuelRemaining() < 10))
         {
             api.setPositionTarget(zona);
             DEBUG (("DIFENDI"));
