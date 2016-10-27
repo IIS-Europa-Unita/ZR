@@ -60,6 +60,28 @@ void getDati()
         objLargeAllHeld = false;
 }
 
+//FUNZIONE PER DIFENDERE LA ZONA
+bool defend()
+{   
+    //Se la distanza dell'avversario rispetto alla zona è minore di 0.5
+    if (dist(zona, statoAvv) < 0.5)
+    {   //Si attiva il trigger
+        //Se la distanza diminuisce (ovvero si avvicina) e il nostro punteggio è minore del suo
+        if ((distAvvPrima > dist(zona, statoAvv))
+           return true;
+        //Se ho tutti gli oggetti grandi
+        if (objLargeAllHeld)
+           return true;
+        //Se il carburante rimanente è minore di 10 secondi
+        if (game.getFuelRemaining() < 10)
+           return true;
+        
+        return false;
+    }
+    else
+        return false;
+}
+
 //FUNZIONE PER IL MOVIMENTO **FUNZIONA**
 /*
 -input:     non assume alcun valore in input
@@ -394,7 +416,7 @@ void loop()
     			break;
         default:    DEBUG(("ERROR"));
     }
-    if (objLargeAllHeld || (game.getFuelRemaining() < 10))
+    if (defend())
         {
             api.setPositionTarget(zona);
             DEBUG (("DIFENDI"));
