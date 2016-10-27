@@ -25,6 +25,28 @@ bool danger()
     }
     else 
         return false;
+}
+
+bool dangerV2()
+{   
+    //Se la distanza dell'avversario rispetto alla zona è minore di 0.5
+    if (dist(zona, statoAvv) < 0.5)
+    {   //Si attiva il trigger
+    
+        //Se la distanza diminuisce (ovvero si avvicina) e il nostro punteggio è minore del suo
+        if ((distAvvPrima > dist(zona, statoAvv))
+        {  //Vado a difendere
+            DEBUG (("FAI ATTENTO"));
+            return true;    //Siamo in pericolo
+        }
+        else 
+        {
+            DEBUG (("VAI TRA FATTI UN TOAST"));
+            return false;   //Non siamo in pericolo
+        }
+    }
+    else 
+        return false;
 }*/
 //FUNZIONE PER RACCOLTA DATI **FUNZIONA**
 /*
