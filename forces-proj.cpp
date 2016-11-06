@@ -1,65 +1,90 @@
 float stato[12];
-float vai[3];
-float forza,amax,distTot,x;
-float y,vb[3];
-float vel[3];
-float vInerzia,ts,tTot,tInerzia;
-bool once,onceB;
-float d,dprec;
-float dist(float a[],float b[])/*Definitivo*/{
-	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
-}
-#define tempo api.getTime()
-void setV(float v[],float x,float y,float z)/*Definitivo*/{
-	v[0] = x;
-	v[1] = y;
-	v[2] = z;
-}
+#define accelPerc 10 //percentage of space used to accelerate & decelerate
+#define fMax 0.046
+class Movement{
+    public:
+    Movement(){}
+    bool targetReached;
+    float target[3];
+    float acc;//max acceleration
+    float distTot;//total distance from target
+    float x;//acceleration & braking space
+    void setV(float v[],float x,float y,float z)/*Definitivo*/{
+        v[0] = x;
+        v[1] = y;
+        v[2] = z;
+    }
+    void setV(float v[],float z[])/*Definitivo*/{
+        v[0] = z[0];
+        v[1] = z[1];
+        v[2] = z[2];
+    }
+    float dist(float myPos[], float targetPos[]){
+        float tempVec[3];
+    	mathVecSubtract(tempVec,targetPos,myPos,3);
+    	return (mathVecMagnitude(tempVec,3));
+    }
+    float massa(){
+        float mult = 1+(game.getNumSPSHeld()/8);//sets the multiplier to 1(the sphere) +1/8(the weight of an SPS) *num of SPS held
+        //if item held == LARGE --> mult+=3/8;
+        //else if item held == MEDIUM --> mult+=2/8;
+        //else if item held == SMALL --> mult+=1/8;
+        return 4.15*mult;
+    }//calculate the actual weight of the sphere
+    void newTarg(float targ[],float stato[]){
+        setV(target,targ);//copy target in the instance
+        targetReached=false;
+    	//get all the data
+        distTot=dist(stato,target);
+        acc=fMax/massa();
+        x=(distTot/100)*accelPerc;
+    	//print something to console
+        DEBUG(("%f, %f",distTot,x));
+    }//all ops to do when a new terget is set
+    void everySec(float stato[]){
+        float vt[3];//temp vector used for various calculations
+        float vel[3];//velocity from ZRSPHERE state array
+        setV(vel,stato[3],stato[4],stato[5]);//getting velocity vector
+        mathVecNormalize(vel,3);//current direction w/o magnitude
+        mathVecSubtract(vt,target,stato,3);
+        mathVecNormalize(vt,3);//direction to target
+        mathVecSubtract(vt,vel,vt,3);
+        setV(vt,vt[0]*acc,vt[1]*acc,vt[2]*acc);
+        
+        if(dist(stato,target)<x/10){//target reached
+            targetReached=true;
+            DEBUG(("we've arrived, do what you need FAST!!"));
+            api.setPositionTarget(stato);
+        }
+        else if(dist(stato,target)<x){//brake
+            setV(vt,vt[0]*-1,vt[1]*-1,vt[2]*-1);
+            api.setVelocityTarget(vt);
+            DEBUG(("hey man, you don't want an accident to happen, SLOW DOWN, SLOW DOWN NOW!!"));
+        }
+        else if(dist(stato,target)>distTot-x){//accelerate
+            api.setVelocityTarget(vt);
+            DEBUG(("GO GO GO MATE!!"));
+        }
+        //else --> moving by momentum
+    }//call it as the last thing in loop(), just do it
+};
+Movement move;//creating instance of movement
 
 void init(){
-    d=10;
+    float vai[3];
 	api.getMyZRState(stato);
-	vai[0]=stato[0]+0.7;
-	vai[1]=stato[1];
-	vai[2]=stato[2]-0.7;
-	forza=0.01;
-	amax=forza/4.15;
-	distTot=dist(vai,stato);
-	DEBUG(("%f",distTot));
-	x=(distTot/100)*20;
-	y=distTot-(2*x);
-	ts=sqrt(2*x/amax);
-	vInerzia=amax*ts;
-	tInerzia=y/vInerzia;
-	tTot=tInerzia+2*ts;
-	DEBUG(("%f, %f\n %f, %f, %f",x,y,ts,tInerzia,tTot));
-	once=onceB=true;
+	move.setV(vai,stato[0]+0.5,stato[1],stato[2]);
+	move.newTarg(vai,stato);
 }
 
 void loop(){
+    float vai[3];
 	api.getMyZRState(stato);
-	setV(vel,stato[3],stato[4],stato[5]);//ottengo vettore velocità
-	mathVecMagnitude(vel,3);
-	dprec=d;
-	d=dist(vai,stato);
-	DEBUG(("dist= %f",d));
-	mathVecSubtract(vb,vai,stato,3);
-	mathVecNormalize(vb,3);
-	setV(vb,vb[0]*forza,vb[1]*forza,vb[2]*forza);//ottengo forza con direzione
-	if(tempo<=ts){
-	    api.setForces(vb);
+	if(api.getTime()>15 && move.targetReached){
+	    move.setV(vai,stato[0],stato[1]+0.5,stato[2]);
+	    move.newTarg(vai,stato);
 	}
-	else if(once){
-	    once=false;
-	    DEBUG(("OFF"));
-	}
-	if(dprec<d&&onceB){
-	    onceB=false;
-	    DEBUG(("arrivato, %f",d));
-	}
-	if(tempo>ts+tInerzia && tempo<tTot){
-	    setV(vb,vb[0]*-1,vb[1]*-1,vb[2]*-1);
-	    api.setForces(vb);
-	}
-	//*/api.setPositionTarget(vai);
+	
+	
+	move.everySec(stato);
 }
