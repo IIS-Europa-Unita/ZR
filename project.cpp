@@ -30,6 +30,69 @@ float dist(float a[],float b[])
 {
 	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
 }
+//FUNZIONE PER IL MOVIMENTO
+/*
+-input:     non assume alcun valore in input
+-output:    non ritorna alcun valore in output
+-descrizione:   _All'inizio della funzione "muovi" viene inizializzato un vettore "vec" al quale viene assegnato la differenza tra la posizione
+                del nostro satellite al punto al quale dobbiamo arrivare. Viene utilizzato nella funzione "setVelocityTarget"
+                
+                _Nell'"if" controlliamo se abbiamo rilasciato tutti gli SPS:
+                
+                    _se SÃƒÂ¬: 
+                            _Nel caso che ci manchi l'oggetto, ci muoviamo verso la posizione definita dall'ID 
+                                (trovato tramite la funzione itemPriority, richiamata nel loop).
+                                Durante il movimento, teniamo conto della nostra velocitÃƒÂ  e la nostra distanza rispetto all'oggetto:
+                                
+                                    _se la distanza ÃƒÂ¨ maggiore del raggio massimo: _Ci muoviamo verso la posizione dell'oggetto
+                                    _altrimenti se la velocitÃƒÂ  ÃƒÂ¨ maggiore di 0.01 m/s, rallentiamo
+                                    
+                                Questo ci aiuta a prendere l'oggetto molto velocemente.
+                                
+                            _Nel caso che avessimo l'oggetto, richiamiamo la funzione "dropItem", la quale individuerÃƒÂ  la posizione della zona
+                                attribuendola al vettore "vai" e controllerÃƒÂ  la funzione di drop dell'oggetto, che avverrÃƒÂ  quando le condizioni 
+                                interne di "dropItem" saranno soddisfatte.
+                                DopodichÃƒÂ¨:
+                                
+                                    _se la distanza dalla zona di scarico ÃƒÂ¨ minore di 0.13m, il satellite rallenta o rimane fermo
+                                    _altrimenti, viaggia verso la posizione della zona di drop
+                                    
+                            _Nel caso in cui l'avversario ha l'oggetto che noi dovremmo prendere, ri-scegliamo quale oggetto prendere
+                            
+                            _Alla fine, richiamiamo la funzione "ruota()", che in questo caso va eseguito sempre, poichÃƒÂ¨ abbiamo necessitÃƒÂ 
+                            di avere il satellite rivolto costantemente verso l'oggetto o la zona di scarico
+                            
+                    _se No: 
+                            _Dopo aver assegnato nel "loop" il punto in cui dirigermi per rilasciare il primo/secondo/terzo SPS
+                            controllo la distanza del nostro satellite da tale punto:
+                            
+                                _se la distanza ÃƒÂ¨ minore di 0.13m, il satellite rallenta
+                                _se la distanza ÃƒÂ¨ maggiore di 0.60m, il satellite utilizzerÃƒÂ  la funzione "setVelocityTarget"
+                                per muoversi velocemente verso il punto
+                                _se la distanza ÃƒÂ¨ compresa fra 0.13m e 0.60m, il satellite utilizza "setPositionTarget" per rallentare
+                                prima di arrivare al punto e evitare quindi di mancarlo
+                            
+*/
+void muovi()
+{
+    float vec[3];
+		mathVecSubtract(vec,vai,stato,3);
+	
+	if (spsAllDrop)
+	{
+        if (game.hasItem(ID) == 0)
+        {
+            game.getItemLoc(vai, ID);
+              
+            if (dist(vai, stato) > R[game.getItemType(ID)])
+                api.setPositionTarget(vai);
+                
+            else if (speed > 0.01) 
+                    api.setPositionTarget(stato);
+        }
+        else if (game.hasItem(ID)==1)
+        {
+            dropItem();
 
 //FUNZIONE PER RACCOLTA DATI **FUNZIONA**
 /*
@@ -406,3 +469,5 @@ void loop()
     if (fase == 1)
         distAvvPrima = dist(zona, statoAvv);
 }
+//End page main
+//End page main
