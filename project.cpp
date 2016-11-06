@@ -1,247 +1,408 @@
-char BoR; // R se sfera rossa, B se blu
-int fase,sottofase;
-float stato[12];
-float statoAvv[12];
-float vai[3];
-float punta[3];
-float posAvv[3];
-float pos[3];
-float facing[3];
-float vel[3];
-float speed;
-float zona[4];
-bool LARGE, MEDIUM, SMALL;
-int ID;
-bool spsAllDrop;
+bool itemChosen;
+int fase, sottofase, ID, BoR;
+float vai[3], zona[4], speed, stato[12], statoAvv[12], distAvvPrima, vel[3], dropError, R[3];
 
-void allontana(){
-   for(int i=0; i<3; i++)
-     if(vai[i]>0)
-       vai[i] = vai[i]-0.03;
-     else{
-       vai[i] = abs(vai[i])-0.03;
-       vai[i] = -vai[i];
-     }
-}
-
-void avvicina(){
-    for(int i=0; i<3; i++)
-     if(vai[i]>0)
-       vai[i] = vai[i]+0.03;
-     else{
-       vai[i] = abs(vai[i])+0.03;
-       vai[i] = -vai[i];
-     }
-}
-
-float dist(float a[],float b[])/*Definitivo*/{
-	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
-}
-
-void setV(float v[],float c[])/*Definitivo*/{
-	v[0] = c[0];
-	v[1] = c[1];
-	v[2] = c[2];
-}
-void setV(float v[],float x,float y,float z)/*Definitivo*/{
+//FUNZIONE PER SETTARE UN VETTORE **FUNZIONA**
+/*
+-input: _float v[] = Vettore al quale assegniamo i valori di x, y e z
+        _float x = Valore della coordinata x
+        _float y = Valore della coordinata y
+        _float z = Valore della coordinata z
+-output: non ritorna direttamente valori, ma modifica il vettore passato con i valori di v[]
+-descrizione:   _Assegno a v[] nelle sue diverse posizioni, le coordinate passate nei parametri seguendo questo ordine:
+                v[0] = x / v[1] = y / v[2] = z
+*/
+void setV(float v[],float x,float y,float z)
+{
 	v[0] = x;
 	v[1] = y;
 	v[2] = z;
 }
 
-bool oOB(float ptc[])/*Definitivo*/{
-	if((fabsf(ptc[0]) > 0.75) || (fabsf(ptc[1]) > 0.75) || (fabsf(ptc[2]) > 0.75))
-      return true;
-    return false;
+//FUNZIONE PER CALCOLARE UNA DISTANZA **FUNZIONA
+/*
+-input: _float a[] = Primo punto
+        _float b[] = Secondo punto
+-otuput: _Ritorna un valore float unico equivalente alla distanza dal punto "a" al punto "b"
+-descrizione:   _Tramite una formula matematica, calcola la distanza fra il punto "a" e il punto "b"
+*/
+float dist(float a[],float b[])
+{
+	return sqrt(mathSquare(a[0] - b[0]) + mathSquare(a[1] - b[1]) + mathSquare(a[2] - b[2]));
 }
 
-void ruota(){
-	float v[3];
-	if(spsAllDrop && dist(pos,vai) < 0.5){//per risparmiare fuel
-	  mathVecSubtract(v,punta,pos,3);
-	  mathVecNormalize(v,3);
-	  api.setAttitudeTarget(v);
-	}
-}
+//FUNZIONE PER RACCOLTA DATI **FUNZIONA**
+/*
+-input: non riceve alcun dato esterno
+-output: non ritorna valori
+-funzionalità:  _Aggiorna i propri dati e quelli dell'avversario, riguardanti la posizione, la velocità e dove sto guardando.
+                _Tiene sotto controllo quali sono gli oggetti che abbiamo e quelli che non abbiamo, in base alla loro presenza nella zona
+                 di scarico o se li stiamo trasportando.
+                 Nel caso che non siano presenti nella zona o non li abbiamo con noi, li segna non presenti
+*/
+void getDati()
+{
+    api.getMyZRState(stato);
+	api.getOtherZRState(statoAvv);
+	
+	vel[0] = stato[3];
+	vel[1] = stato[4];
+	vel[2] = stato[5];
 
-void muovi(){
-	if(oOB(pos)){
-		for(int i = 0; i < 3; i++)
-			vai[i] = 0;
-	}
-	else{
-		float vec[3],d = dist(vai,pos);
-		DEBUG(("%f",d));
-		mathVecSubtract(vec,vai,pos,3);
-		switch(spsAllDrop)
-		{
-		    case true: 
-		      if(d > 0.267)
-		        api.setPositionTarget(vai);
-		      else 
-		        api.setPositionTarget(pos);
-		    break;
-		    case false:	
-		      if(d > 0.50)
-			    api.setVelocityTarget(vec);
-		      api.setPositionTarget(vai);
-		      if(d < 0.13)
-			    api.setPositionTarget(pos); //sostituisce frena())
-			break;
-		}
-	}
-}
-
-int checkDock(int id)/*verifico condizioni per docking*/{
-	float targ[3];
-	game.getItemLoc(targ,id); //Posizione dell'oggetto
-	float targD = dist(targ,pos); //Distanza dall'oggetto 
-	if(((id == 0 || id == 1) && targD < 0.151) ||
-	((id == 2 || id == 3) && targD < 0.138) ||
-	((id == 4 || id == 5) && targD < 0.124)){
-		DEBUG(("Do: vicini"));
-		return 1;
-	}
-	if(((id == 0 || id == 1) && targD > 0.173) ||
-	((id == 2 || id == 3) && targD > 0.160) ||
-	((id == 4 || id == 5) && targD > 0.146)){
-		DEBUG(("Do: lontani"));
-		return 2;
-	}
-	if(speed > 0.01){
-		DEBUG(("Do: Velocita"));
-		return 3;
-	}
-	return 0;
-}
-
-void dock(){
-    switch (checkDock(ID)){
-        case 0:
-          game.dockItem();
-          if (game.hasItemBeenPickedUp(ID) || game.hasItemBeenPickedUp(ID+1))
-          switch (ID){
-              case 0: case 1: LARGE = false; break;
-              case 2: case 3: MEDIUM = false; break;
-              case 4: case 5: SMALL = false; break;
-          }
-        break;
-        case 1:
-          allontana();
-        break;
-        case 2:
-          if(dist(pos,punta) < 0.45)
-            avvicina();
-          else
-            api.setPositionTarget(vai);
-        break;
-        case 3:
-          api.setPositionTarget(pos);
-        break;
-        default: DEBUG (("ERRORE")); break;
-    }
-}
-
-void init(){
-	for(int i = 0; i < 3; i++)vai[i] = punta[i] = 0;
-	api.getMyZRState(stato);
-	BoR = stato[1] > 0 ? 'R' : 'B'; //capisco quale sfera siamo
-	fase = sottofase = 0;
-	spsAllDrop = false;
-	LARGE = true;    //Partono con true poichè ancora presenti nel campo, passano a false se non presenti
-	MEDIUM = true;
-	SMALL = true;
-	ID = 0;
-}
-
-void inizio(){
-	api.getMyZRState(stato); //aggiorno dati miei
-	api.getOtherZRState(statoAvv); //aggiorno dati avversario
-	for(int i = 0; i < 3; i++){
-		pos[i] = stato[i];
-		facing[i] = stato[i + 6];
-		posAvv[i] = statoAvv[i];
-		vel[i] = stato[i + 3];
-	}//ottengo pos + dir miei e pos avversario
 	speed = mathVecMagnitude(vel,3);
 }
 
-void fine(){
-	ruota(); //rotazione verso punta[]
-	muovi(); //spostamento verso vai[]
-}
-
-void itemPriority(){
-  /*float large[3]={0.375, 0.727, 0.2}; //massa, accelerazione, punteggio
-    float medium[3]={0.25, 0.8, 0.15};
-    float small[3]={0.125, 0.889, 0.1};*/
-    float d[3]={0.0};
-    float d1[3]={0.0};
+//FUNZIONE PER IL MOVIMENTO **FUNZIONA**
+/*
+-input:     non assume alcun valore in input
+-output:    non ritorna alcun valore in output
+-descrizione:   _All'inizio della funzione "muovi" viene inizializzato un vettore "vec" al quale viene assegnato la differenza tra la posizione
+                del nostro satellite al punto al quale dobbiamo arrivare. Viene utilizzato nella funzione "setVelocityTarget"
+                
+                _Nell'"if" controlliamo se abbiamo rilasciato tutti gli SPS (e quindi la fase è diventata = 1):
+                
+                    _se Sì: 
+                            _Nel caso che ci manchi l'oggetto, ci muoviamo verso la posizione definita dall'ID 
+                                (trovato tramite la funzione itemPriority, richiamata nel loop).
+                                Durante il movimento, teniamo conto della nostra velocità e la nostra distanza rispetto all'oggetto:
+                                
+                                    _se la distanza è maggiore del raggio massimo: _Ci muoviamo verso la posizione dell'oggetto
+                                    _altrimenti se la velocità è maggiore di 0.01 m/s, rallentiamo
+                                    
+                                Questo ci aiuta a prendere l'oggetto molto velocemente.
+                                
+                            _Nel caso che avessimo l'oggetto, richiamiamo la funzione "dropItem", la quale individuerà la posizione della zona
+                                attribuendola al vettore "vai" e controllerà la funzione di drop dell'oggetto, che avverrà quando le condizioni 
+                                interne di "dropItem" saranno soddisfatte.
+                                Dopodichè:
+                                
+                                    _se la distanza dalla zona di scarico è minore di 0.13m, il satellite rallenta o rimane fermo
+                                    _altrimenti, viaggia verso la posizione della zona di drop
+                                    
+                            _Nel caso in cui l'avversario ha l'oggetto che noi dovremmo prendere, ri-scegliamo quale oggetto prendere
+                            
+                            _Alla fine, richiamiamo la funzione "ruota()", che in questo caso va eseguito sempre, poichè abbiamo necessità
+                            di avere il satellite rivolto costantemente verso l'oggetto o la zona di scarico
+                            
+                    _se No: 
+                            _Dopo aver assegnato nel "loop" il punto in cui dirigermi per rilasciare il primo/secondo/terzo SPS
+                            controllo la distanza del nostro satellite da tale punto:
+                            
+                                _se la distanza è minore di 0.13m, il satellite rallenta
+                                _se la distanza è maggiore di 0.60m, il satellite utilizzerà la funzione "setVelocityTarget"
+                                per muoversi velocemente verso il punto
+                                _se la distanza è compresa fra 0.13m e 0.60m, il satellite utilizza "setPositionTarget" per rallentare
+                                prima di arrivare al punto e evitare quindi di mancarlo
+                            
+*/
+void muovi()
+{
+    float out[3];
+    float vec[3];
+    mathVecSubtract(vec, vai, stato, 3);
     
-    if (!LARGE)
-        ID = 2;
-    if (!MEDIUM)
-        ID = 4;
-    if (!SMALL)
+    if (dist(vai, stato) > 0.85)
     {
-        ID = 2;
-        MEDIUM = true;
+        api.setVelocityTarget(vec);
+        DEBUG (("GOTTA GO FAST"));
+    }
+    else
+    {
+        if (itemChosen)
+        {
+            if (dist(vai, stato) > R[game.getItemType(ID)])
+                    api.setPositionTarget(vai);
+                    
+                else 
+                    if (speed > 0.01) 
+                        api.setPositionTarget(stato);
+            
+            if ((dist(zona, stato) < dropError) && game.hasItem(ID))
+            {
+                setV (out, 0.0, 0.0, 0.0);
+                api.setPositionTarget(out);
+            }
+        }
+        else
+        {
+            if (dist(vai, stato) > 0.2)
+                api.setPositionTarget(vai);
+            else
+                api.setPositionTarget(stato);
+        }
     }
     
-    game.getItemLoc(d,ID);
-    game.getItemLoc(d1,(ID+1));
-    if((dist(pos, d)+dist(d, zona)) > (dist(pos, d1)+dist(d1, zona)) && !game.hasItemBeenPickedUp(ID+1)){    //restituisce l'id dell'item più conveniente da andare a prendere
-       DEBUG(("ID: %d", ID+1));
-       ID++;
-    }else
-       DEBUG(("ID: %d", ID));
+    if (itemChosen || game.hasItem(ID))
+        ruota();
 }
 
-void loop(){
-    inizio();
-	switch(fase){
-        case 0://drop SPSs, i cosi per sapere dove si trova la zhohona
-            if (sottofase==0){
-                game.dropSPS();
-                sottofase++;
-                setV(vai, -0.3, -0.5, 0);
-                //game.getItemLoc(vai,1);
-            }
-            else if (sottofase==1 && dist(vai,pos)<0.1){
-                game.dropSPS();
-                sottofase++;
-                setV(vai, -0.3, 0.3, 0);
-                //game.getItemLoc(vai,5);
-            }
-            else if(sottofase==2 && dist(vai,pos)<0.1){
-                game.dropSPS();
-                spsAllDrop = true;
-                game.getZone(zona);
-                sottofase=0;
-                fase++;
-            }
-        break;
-        case 1://getZone
-            if(!game.getZone(zona)){//se true, carica anche la posizione della sfera in zona
-                fase--;
-            }
-        break;
-        default:
-        DEBUG(("ERROR"));
-	}
-	if(spsAllDrop == true && game.hasItem(ID) == 0){
-          itemPriority();
-          DEBUG (("ID: %d", ID));
-          game.getItemLoc(vai, ID);
-          game.getItemLoc(punta, ID);
-          dock();
+//FUNZIONE PER LA ROTAZIONE **FUNZIONA**
+/*
+-input: non riceve alcun valore in input
+-output: non ritorna alcun valore in output
+-descrizione:   _Viene inizializzato un vettore float "vett"
+                _Viene eseguito il calcolo matematico con le varie assegnazioni per trovare il vettore normalizzato
+                _Viene richiamata la funzione "setAttitudeTarget" immettendo come parametro il vettore normalizzato
+                così facendo il satellite ruota fino a guardare il punto calcolato
+*/
+void ruota()
+{
+    float vett[3];
+    
+    mathVecSubtract(vett,vai,stato,3);
+    mathVecNormalize(vett,3);
+    api.setAttitudeTarget(vett);
+}
+
+//FUNZIONE PER L'ESECUZIONE DEL DOCKING **FUNZIONA**
+/*
+-input: non riceve alcun valore in input
+-output: non ritorna alcun valore in output
+-descrizione:   _All'interno del parametro dell'if, richiamiamo "checkDock()", che ritornerà un valore booleano:
+                    _se checkDock() = true:
+                                            _Eseguo il dock dell'item tramite la funzione "dockItem(ID)"
+                    _se checkDock() = false:
+                                            _Non eseguo alcuna operazione fino a quando checkDock non ritornerà "true"
+*/
+bool dock()
+{   
+    bool checkDoc;
+    float distdock [6][2] = {	{.151,.173}, {.151,.173},
+                               	{ .138 , .160 },{ .138 , .160 },
+                          		{ .124 , .146 },{ .124 , .146 }
+                          	};
+
+    checkDoc = dist(stato, vai) > distdock[ID][0] && dist(stato, vai) < distdock[ID][1] && speed < .01? true:false; 
+
+    if (checkDoc){
+        game.dockItem(ID);
+        if (game.hasItem(ID))
+        {
+            DEBUG(("Picking up? Don't mind if i do"));
+            return true;    //Ho dockato
+        }
+        else 
+            return false;   //Non ho dockato
     }
-    else if(spsAllDrop){
-        game.getZone(zona);
-        setV(vai, zona);
-        setV(punta, vai);
-        if(dist(pos,vai) < 0.185)
-          game.dropItem();
+    else
+        return false;
+}
+
+//FUNZIONE PER LA SCELTA DELL'OGGETTO
+/*
+-input:     non assume alcun valore in input
+-output:    non ritorna alcun valore
+-descrizione:   Comincio con vedere se ho tutti e 2 i gialli;se è cosi passo ai 
+                MEDIUM,ecc.
+                La funzione scelgoQuale determina quale dei 2 oggetti di un 
+                determinato tipo conviene andare a prendere 
+*/
+void itemPriorityV2()
+{
+    int ogg = 0;
+    float obj[3], obj2[3];
+        
+    do
+    {
+        //Abbiamo preso tutti e due e sono nella zona
+        if (game.itemInZone(ogg) && game.itemInZone(ogg+1))
+            ogg+=2;
+        
+        else
+        {
+            if (!game.itemInZone(ogg) && !game.itemInZone(ogg+1))
+            {
+            
+                //Entrambi gli oggetti sono disponibili
+                    if (dist(stato, obj)+dist(zona, obj) < dist(stato, obj2)+dist(zona, obj2))
+                        ID = ogg;
+                    else
+                        ID = ogg+1;
+                    
+                    game.getItemLoc(obj, ID);
+                    
+                    if (dist(statoAvv, obj) < dist(stato, obj) || (game.hasItem(ID) == 2))
+                        if (ID == ogg)
+                            ID = ogg+1;
+                        else
+                            ID = ogg;
+                    
+                    itemChosen = true;
+                    game.getItemLoc(vai, ID);
+            }
+            else
+            {
+                //Solo uno dei due disponibile    
+                if (game.itemInZone(ogg))
+                    ID = ogg+1;
+                else 
+                    ID = ogg;
+                
+                game.getItemLoc(obj, ID);
+                
+                if (dist(statoAvv, obj) > dist(stato, obj))
+                {
+                    game.getItemLoc(vai, ID);
+                    itemChosen = true;
+                }
+                else
+                    //Cambio colore
+                    ogg+=2;
+            }
+        }
+    }while (!itemChosen);
+    
+    DEBUG (("Order? I wouldn't mind the number %d, thanks", ID));
+}
+
+//FUNZIONE PER LO SGANCIO DI UN OGGETTO **FUNZIONA**
+/*
+-input: non assume alcun valore in input
+-output: non ritorna alcun valore in output
+-descrizione:   _Si inizializza un vettore "obj", al quale verrà attribuito costantemente la posizione dell'oggetto "ID"
+                _Settiamo il vettore "vai" tramite la funzione "setV" con le coordinate della zona di scarico
+                _Se la distanza tra la zona di scarico e l'oggetto è minore di 0.045m:
+                
+                    _Viene rilasciato l'oggetto e itemChosen torna a "falso", poichè l'oggetto scelto ora è stato scaricato
+                    e di conseguenza dobbiamo sceglierne uno nuovo
+                    
+                _Altrimenti non succede nulla
+*/
+bool dropItem()
+{
+    float obj[3];
+    setV(vai, zona[0], zona[1], zona[2]);
+    game.getItemLoc(obj, ID);
+    
+    if (dist(vai, obj) <= dropError)
+    {
+        game.dropItem();
+        itemChosen = false;
+        DEBUG(("There you go... STAY THERE OK? Don't move."));
+        return true;
     }
-	fine();
+    else
+    	return false;
+}
+
+//FUNZIONE PER L'INIZIALIZZAZIONE DELLE VARIABILI **FUNZIONA**
+/*
+-input: non assume alcun valore in input
+-output: non ritorna alcun valore in output
+-descrizione: _Viene utilizzata per l'inizializzazione delle variabili globali
+*/
+void init()
+{
+    //Azzero vai
+    vai[0] = 0;
+    vai[1] = 0;
+    vai[2] = 0;
+    
+    //Valori dei raggi massimi per oggetti LARGE (0); MEDIUM (1); SMALL (2)
+    R[0] = .27;
+    R[1] = .25;
+    R[2] = .25;
+    
+    //Prelevo il mio stato
+	api.getMyZRState(stato);
+	
+	//Capisco quale sfera siamo
+	BoR = stato[1] > 0 ? 1 : 0;     //1 = Blu / 0 = Rossa
+	
+	//Inizializzo le variabili
+	fase = sottofase = ID = dropError = 0;
+	itemChosen = false;
+	
+	DEBUG(("Should this be something easy? I hope so"));
+}
+
+//Funzione per l'applicazione della strategia e delle funzioni **FUNZIONA**
+void loop()
+{
+    //Prelevo i dati all'inizio dello switch
+    getDati();
+    //Lo siwtch controlla il drop degli sps
+    switch(fase){
+        //case 0: Droppo gli sps alla posizione stabilita tramite setV()
+        case 0:
+                switch (sottofase)
+                {
+                    case 0: //Droppo il primo SPS
+                            game.dropSPS();
+                            sottofase++;
+                            if(BoR) setV(vai,-0.6,0.5,0.3);
+                                else setV(vai,0.6,-0.5,0.3);
+                            //setV(vai, -0.25, 0.45, .0); **Alternativo
+                            break;
+                            
+                    case 1: //Droppo il secondo SPS se la distanza dalla destinazione è minore di 0.2
+                            if (dist(vai, stato) < 0.2)
+                            {
+                                game.dropSPS();
+                                sottofase++;
+                                //setV(vai, -0.25, -0.1, -0.25); **Alternativo
+                            }
+                            break;
+                            
+                    case 2: //Droppo il terzo SPS se la distanza dalla destinazione è minore di 0.2
+                            if (dist(vai, stato) < 0.2)
+                            {
+                                     //Riazzero la sottofase -> Viene utilizzato in fase2
+                                sottofase=0;
+                                fase++;             //Cambio fase
+                            }
+                            break;
+                }
+                break;
+       
+        case 1:
+                switch(sottofase)
+                {
+    	            //Vado a prendere un oggetto
+             	   	case 0:
+        	                //Se non ho scelto un oggetto e lo devo ancora scegliere, eseguo l'itemPriority
+            	        	if (!itemChosen)
+                	           	itemPriorityV2();
+                       
+                    	    //l'oggetto verso cui andavamo è stato preso dall'avversario
+                    	    if (game.hasItem(ID) == 2)
+                        			itemChosen = false;
+                            //Tento di fare il docking;se ci riesco vado a posarlo in zona di assembleaggio
+                        	else 
+                        	    if (!game.hasItem(ID))
+                            	    if (dock())
+                            	    {
+                            	        if (game.getNumSPSHeld() > 0)
+                            	        {
+                                	        game.dropSPS();
+    		                                game.getZone(zona);
+    		                                
+    		                                dropError = 0.037;
+                            	        }
+                            	        sottofase++;
+                            	    }
+               			    break;
+        			
+        			//Vado a posare l'oggetto	
+        			case 1: //Porto sottofase a a 0 quando l'ho posato, per ricomincaire con un altro oggetto
+        				    if (dropItem())
+        					    sottofase = 0;
+        			        break;
+    			}
+    			break;
+    }
+    
+    if (((dist(zona, statoAvv) < 0.5) && (dist(zona, stato) < dist(zona, statoAvv))) && !game.hasItem(ID))
+    {
+        if ((distAvvPrima > dist(zona, statoAvv)))
+            api.setPositionTarget(zona);
+    }
+    else
+        if (((game.getFuelRemaining() < 7) || (game.itemInZone(0) && game.itemInZone(1))) && (!game.hasItem(ID) || (game.hasItem(ID) == 2)))
+            api.setPositionTarget(zona);
+        else   
+            muovi();    //Si muove verso vai[]
+    
+    if (fase == 1)
+        distAvvPrima = dist(zona, statoAvv);
 }
