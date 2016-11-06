@@ -1,9 +1,8 @@
 float stato[12];
 #define accelPerc 10 //percentage of space used to accelerate & decelerate
-#define fMax 0.046
-class Movement{
+#define fMax 0.46
+class{
     public:
-    Movement(){}
     bool targetReached;
     float target[3];
     float acc;//max acceleration
@@ -48,10 +47,10 @@ class Movement{
         mathVecNormalize(vel,3);//current direction w/o magnitude
         mathVecSubtract(vt,target,stato,3);
         mathVecNormalize(vt,3);//direction to target
-        mathVecSubtract(vt,vel,vt,3);
+        //mathVecSubtract(vt,vel,vt,3);//
         setV(vt,vt[0]*acc,vt[1]*acc,vt[2]*acc);
-        
-        if(dist(stato,target)<x/10){//target reached
+        DEBUG(("%f",dist(stato,target)));
+        if(dist(stato,target)<x/5){//target reached
             targetReached=true;
             DEBUG(("we've arrived, do what you need FAST!!"));
             api.setPositionTarget(stato);
@@ -67,13 +66,12 @@ class Movement{
         }
         //else --> moving by momentum
     }//call it as the last thing in loop(), just do it
-};
-Movement move;//creating instance of movement
+}move;
 
 void init(){
     float vai[3];
 	api.getMyZRState(stato);
-	move.setV(vai,stato[0]+0.5,stato[1],stato[2]);
+	move.setV(vai,stato[0]+0.7,stato[1]+0.7,stato[2]);
 	move.newTarg(vai,stato);
 }
 
@@ -81,10 +79,9 @@ void loop(){
     float vai[3];
 	api.getMyZRState(stato);
 	if(api.getTime()>15 && move.targetReached){
-	    move.setV(vai,stato[0],stato[1]+0.5,stato[2]);
+	    move.setV(vai,stato[0],stato[1]-0.7,stato[2]-0.7);
 	    move.newTarg(vai,stato);
 	}
-	
 	
 	move.everySec(stato);
 }
