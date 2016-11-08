@@ -41,30 +41,26 @@ class{
         DEBUG(("%f, %f",distTot,x));
     }//all ops to do when a new terget is set
     void everySec(float stato[]){
+        float vt[3];//temp vector used for various calculations
+        float vel[3];//velocity from ZRSPHERE state array
+        setV(vel,stato[3],stato[4],stato[5]);//getting velocity vector
+        mathVecNormalize(vel,3);//current direction w/o magnitude
+        mathVecSubtract(vt,target,stato,3);
+        mathVecNormalize(vt,3);//direction to target
+        //mathVecSubtract(vt,vel,vt,3);//
+        setV(vt,vt[0]*acc,vt[1]*acc,vt[2]*acc);
         DEBUG(("%f",dist(stato,target)));
-        #define slowX 2
-        if(dist(stato,target)<x/(5*slowX)){//target reached
+        if(dist(stato,target)<x/5){//target reached
             targetReached=true;
             DEBUG(("we've arrived, do what you need FAST!!"));
             api.setPositionTarget(stato);
         }
-        else if(dist(stato,target)<x/slowX){//brake
-            float vt[3];//temp vector used for various calculations
-            setV(vt,0,0,0);
+        else if(dist(stato,target)<x){//brake
+            setV(vt,vt[0]*-1,vt[1]*-1,vt[2]*-1);
             api.setVelocityTarget(vt);
             DEBUG(("hey man, you don't want an accident to happen, SLOW DOWN, SLOW DOWN NOW!!"));
         }
         else if(dist(stato,target)>distTot-x){//accelerate
-            float vt[3];//temp vector used for various calculations
-            float vel[3];//velocity from ZRSPHERE state array
-            setV(vel,stato[3],stato[4],stato[5]);//getting velocity vector
-            mathVecSubtract(vt,target,stato,3);
-            mathVecNormalize(vt,3);//direction to target
-            setV(vt,vt[0]*acc,vt[1]*acc,vt[2]*acc);
-            mathVecSubtract(vel,vt,vel,3);
-            mathVecSubtract(vt,vt,vel,3);
-            mathVecNormalize(vt,3);//direction to target
-            setV(vt,vt[0]*acc,vt[1]*acc,vt[2]*acc);
             api.setVelocityTarget(vt);
             DEBUG(("GO GO GO MATE!!"));
         }
@@ -75,7 +71,7 @@ class{
 void init(){
     float vai[3];
 	api.getMyZRState(stato);
-	move.setV(vai,stato[0]+0.5,stato[1],stato[2]);
+	move.setV(vai,stato[0]+0.7,stato[1]+0.7,stato[2]);
 	move.newTarg(vai,stato);
 }
 
@@ -83,7 +79,7 @@ void loop(){
     float vai[3];
 	api.getMyZRState(stato);
 	if(api.getTime()>15 && move.targetReached){
-	    move.setV(vai,stato[0],stato[1],stato[2]-0.5);
+	    move.setV(vai,stato[0],stato[1]-0.7,stato[2]-0.7);
 	    move.newTarg(vai,stato);
 	}
 	
